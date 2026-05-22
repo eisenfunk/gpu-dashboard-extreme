@@ -1,26 +1,28 @@
 import requests
 import json
 from typing import Optional, Dict, Any
+from pydantic import BaseModel, Field
 
 class Filter:
     class Type(str):
         FILTER = "filter"
 
-    class Valves(dict):
-        # Diese Variablen erscheinen als Einstellung in Open WebUI
-        server_url: str = "http://localhost:8090/stats-quick"
-        update_on_inlet: bool = True
+    class Valves(BaseModel):
+        server_url: str = Field(
+            default="http://localhost:8090/stats-quick",
+            description="URL to your GPU extreme dashboard"
+        )
+        update_on_inlet: bool = Field(
+            default=True,
+            description="Reload on each chat?"
+        )
 
     def __init__(self):
         self.valves = self.Valves()
 
     async def inlet(self, body: Dict[str, Any], __event_emitter__: Any = None) -> Dict[str, Any]:
-        """
-        Wird beim Senden einer Nachricht aufgerufen.
-        """
         if __event_emitter__ is not None and self.valves.update_on_inlet:
             try:
-                # 1. Daten von der konfigurierbaren URL abrufen
                 response = requests.get(self.valves.server_url, timeout=3)
                 
                 if response.status_code == 200:
@@ -28,15 +30,13 @@ class Filter:
                     gpu = data.get("card0", {})
                     
                     if gpu:
-                        # 2. Werte extrahieren (inklusive Power!)
-                        temp = gpu.get("Temperature (Sensor edge) (C)", "??")
-                        pwr = gpu.get("Current Socket Graphics Package Power (W)", "??")
-                        load = gpu.get("GPU use (%)", "??")
-                        vram = gpu.get("GPU Memory Allocated (VRAM%)", "??")
+                        temp = f"{float(gpu.get('Temperature (Sensor edge) (C)', 0)):.0f}°C"
+                        pwr = f"{float(gpu.get('Current Socket Graphics Package Power (W)', 0)):.0f}W"
+                        load = f"{float(gpu.get('GPU use (%)', 0)):.0f}%"
+                        vram = f"{float(gpu.get('GPU Memory Allocated (VRAM%)', 0)):.0f}%"
                         
-                        # 3. Schön formatierten Status-String bauen
-                        # Format: 🌡️ 55°C | ⚡ 120W | 🚀 20% | 💾 4GB
-                        status_msg = f"🌡️ {temp}°C | ⚡ {pwr}W | 🚀 {load}% | 💾 {vram}%"
+                        # --- ICONS: 🌡️ Temp | ⚡ Power | 🚀 Load | 🧠 VRAM (AI-Chip) ---
+                        status_msg = f"🌡️ {temp} | ⚡ {pwr} | 🚀 {load} | 🧠 {vram}"
                         
                         await __event_emitter__({
                             "type": "status",
@@ -46,16 +46,15 @@ class Filter:
                             }
                         })
                     else:
-                        raise ValueError("Keine GPU-Daten in der Antwort gefunden.")
+                        raise ValueError("Keine GPU-Daten gefunden.")
                 else:
-                    raise Exception(f"Server-Error: Status {response.status_code}")
+                    raise Exception(f"Server-Fehler: {response.status_code}")
 
             except Exception as e:
-                # Fehler dezent anzeigen
                 await __event_emitter__({
                     "type": "status",
                     "data": {
-                        "description": f"⚠️ GPU-Dashboard Error: {str(e)}",
+                        "description": f"⚠️ GPU-Fehler: {str(e)}",
                         "status": "error"
                     }
                 })

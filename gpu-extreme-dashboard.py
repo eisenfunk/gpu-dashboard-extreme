@@ -1,9 +1,11 @@
 import subprocess
 import json
 import time
+from flask_cors import CORS
 from flask import Flask, Response, render_template_string, request
 
 app = Flask(__name__)
+CORS(app)
 
 # --- DASHBOARD HTML & CSS ---
 HTML_TEMPLATE = """
@@ -489,6 +491,19 @@ def stream():
             yield f"data: {json.dumps(data)}\n\n"
             time.sleep(interval)
     return Response(event_stream(), mimetype='text/event-stream')
+
+@app.route('/stats-quick')
+def stats_quick():
+    """Ein einfacher Endpunkt für die WebUI-Funktion (ohne SSE-Overhead)"""
+    try:
+        # Wir nutzen deine bestehende Logik
+        data = get_real_gpu_data()
+        # Falls es einen Fehler gibt, liefern wir ein leeres Dict
+        if "error" in data:
+            return {"error": "No data"}, 500
+        return data
+    except Exception as e:
+        return {"error": str(e)}, 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8090, threaded=True)

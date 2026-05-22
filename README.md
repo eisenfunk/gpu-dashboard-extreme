@@ -1,78 +1,103 @@
-# 🚀 GPU Extreme Cockpit V4
+# 🚀 GPU Extreme Dashboard & Cockpit
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen.svg)
 ![Platform](https://img.shields.io/badge/platform-AMD%20ROCm-red.svg)
+![Integration](https://img.shields.io/badge/integration-Open--WebUI-orange.svg)
 
-**GPU Extreme Cockpit** ist ein hochperformantes, visuell intensives Monitoring-Widget für Grafikkarten. Es wurde speziell für Streamer (OBS/Streamlabs) oder Enthusiasten entwickelt, die ihre GPU-Auslastung nicht nur sehen, sondern *spüren* wollen. Durch extrem dynamische CSS-Animationen reagiert das Interface physisch auf die Last deiner Hardware.
+**GPU Extreme Dashboard** is a high-performance monitoring suite that transforms hardware telemetry into a visual experience. It is divided into two specialized modules: a **Visual Cockpit** for streamers (OBS) and a **Seamless Telemetry Integration** for Open-WebUI.
 
-## ✨ Features
+---
 
+## 💎 Two Worlds
+
+### 1. 🎨 Visual Cockpit (for OBS & Browsers)
+A visually intense monitoring widget designed for streamers and enthusiasts. It utilizes dynamic CSS animations that react physically to your hardware load.
 * **🔥 Extreme Visual Feedback:**
-    * **VRAM Bloat & Pop:** Die VRAM-Box dehnt sich bei hoher Last aus und vollzieht einen "Comic-Style" Pop-and-Shrink-Zyklus.
-    * **Meltdown Mode:** Bei kritischen Temperaturen wechselt das Interface in einen rötlichen Schüttel-Modus.
-    * **Lightning Bursts:** Power-Spitzen lösen visuelle Blitzeffekte aus.
-    * **Heat Effects:** Temperatur-Anstiege verändern die Farbe und Intensität des Interfaces (Fire-Effect).
-* **⚡ Real-Time Updates:** Nutzt *Server-Sent Events (SSE)* für minimale Latenz bei höchster Performance.
-* **🛠️ Fully Customizable:** Steuerung des Layouts und der Intensität direkt über URL-Parameter.
-* **🎮 Simulation Mode:** Integrierter Test-Modus, um die Animationen ohne echte Last zu prüfen.
+    * **VRAM Bloat & Pop:** The VRAM box expands during high load (Comic-style pop-and-shrink).
+    * **Meltdown Mode:** At critical temperatures, the interface enters a red-tinted "shake" mode.
+    * **Lightning Bursts:** Power spikes trigger visual lightning effects.
+    * **Heat Effects:** Rising temperatures change the color intensity (Fire-effect).
+* **⚡ Real-Time Updates:** Uses *Server-Sent Events (SSE)* for minimal latency and high performance.
+* **🎮 Simulation Mode:** Integrated test mode to preview animations without actual GPU load.
+
+### 2. 🧠 AI-OS Telemetry (for Open-WebUI)
+Transform your LLM interface into a true Operating System. The WebUI function integrates GPU metrics directly into your chat workflow.
+* **📟 Status Integration:** GPU temperature, power, load, and VRAM are displayed as elegant status messages directly above the chat input.
+* **⚙️ Valve Configuration:** Server URL and update settings can be managed directly via the Open-WebUI interface.
+* **🚀 Plug & Play:** Quick installation via JSON import.
+
+---
+
+## 📂 Project Structure
+
+* `gpu-extreme-dashboard.py` – The core backend (Flask) providing the Visual Cockpit and the Telemetry API.
+* `gpu-extreme-webui.py` – The Python function specifically for Open-WebUI integration.
+* `gpu-extreme-webui.json` – The ready-to-use configuration file for instant import into Open-WebUI.
+
+---
 
 ## 🛠️ Installation
 
-### Voraussetzungen
+### Prerequisites
 * **Python 3.8+**
-* **AMD GPU mit installierten ROCm-Treibern** (nutzt `rocm-smi` zur Datenerfassung).
-* **Flask** (Python Library).
+* **AMD GPU** with installed ROCm drivers (uses `rocm-smi` for data collection).
+* **Flask** & **Flask-CORS** (required for WebUI communication).
 
 ### Setup
-1. **Repository klonen:**
+1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/dein-username/gpu-extreme-cockpit.git
-   cd gpu-extreme-cockpit
+   git clone https://github.com/your-username/gpu-extreme-dashboard.git
+   cd gpu-extreme-dashboard
    ```
-
-2. **Abhängigkeiten installieren:**
+2. **Install Dependencies:**
    ```bash
-   pip install flask
+   pip install flask flask-cors
    ```
-
-3. **Skript starten:**
+3. **Start the Dashboard:**
    ```bash
-   python app.py
+   python gpu-extreme-dashboard.py
    ```
-   Das Dashboard ist nun unter `http://localhost:8090` erreichbar.
+   The dashboard will be listening on `0.0.0.0:8090`. You can access it via `http://localhost:8090` or your local IP address.
 
-## ⚙️ Konfiguration (URL Parameters)
+---
 
-Du kannst das Verhalten des Widgets direkt beim Aufruf im Browser oder in OBS über URL-Parameter steuern:
+## ⚙️ Configuration
 
-| Parameter | Typ | Standard | Beschreibung |
+### For the Visual Cockpit (URL Parameters)
+Control the widget behavior directly via URL parameters in your browser or OBS:
+| Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `col` | Integer | `2` | Anzahl der Spalten im Grid (1, 2, oder 4). |
-| `interval` | Float | `2` | Update-Intervall in Sekunden. |
-| `test` | Boolean | `false` | Aktiviert den Simulations-Modus (ideal zum Testen der Animationen). |
-| `width` | Integer | `520` | Breite des gesamten Widgets in Pixeln. |
-| `widget_size` | String | `520px` | CSS-kompatible Breitenangabe. |
+| `col` | Integer | `2` | Number of columns in the grid (1, 2, or 4). |
+| `interval` | Float | `2` | Update interval in seconds. |
+| `test` | Boolean | `false` | Enables Simulation Mode (ideal for testing animations). |
+| `width` | Integer | `520` | Total width of the widget in pixels. |
 
-**Beispiel für ein 4-Spalten-Layout im Testmodus:**
+**Example for a 4-column layout in test mode:**
 `http://localhost:8090/?col=4&test=true&interval=1`
 
-## 🖥️ Integration in OBS
+### For Open-WebUI (Valves)
+1. Navigate to **Workspace** -> **Functions** in Open-WebUI.
+2. Click **Import** and select `gpu-extreme-webui.json`.
+3. Open the function settings (gear icon) to configure the `server_url`. 
+   *(Note: If running in Docker, use `http://host.docker.internal:8090/stats-quick`)*.
 
-1. Öffne OBS.
-2. Füge eine neue Quelle hinzu: **Browser**.
-3. Gib die URL ein: `http://localhost:8090/?col=4&interval=2` (oder deine gewünschte Konfiguration).
-4. Setze die Breite und Höhe passend zu deiner Konfiguration.
-5. **Fertig!** Dein Cockpit ist live.
+---
+
+## 🖥️ OBS Integration
+1. Open OBS.
+2. Add a new source: **Browser**.
+3. Enter the URL: `http://localhost:8090/?col=4&interval=2` (or your custom configuration).
+4. Set the width and height according to your layout.
+5. **Done!** Your cockpit is live.
+
+---
 
 ## ⚠️ Disclaimer
-
-Dieses Tool liest Hardware-Daten über Systembefehle aus. Die Verwendung erfolgt auf eigene Gefahr. Die Animationen sind rein dekorativ und haben keinen Einfluss auf die Hardware-Performance oder die Kühlung.
+This tool reads hardware data via system commands. Use it at your own risk. Animations are purely decorative and do not affect hardware performance or cooling.
 
 ## 📄 License
-
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
-*Developed with ❤️ for GPU Enthusiasts.*
-
+_Developed with ❤️ for GPU Enthusiasts._

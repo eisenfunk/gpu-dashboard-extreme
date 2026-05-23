@@ -4,6 +4,8 @@ import time
 from flask_cors import CORS
 from flask import Flask, Response, render_template_string, request
 
+use_rocm = True
+
 app = Flask(__name__)
 CORS(app)
 
@@ -412,6 +414,7 @@ HTML_TEMPLATE = """
                 document.getElementById('status-text').innerText = "Error: " + data.error;
                 return;
             }
+            document.getElementById('status-text').innerText = "LIVE";
             const c0 = data.card0;
             manageTemperaturStove(parseFloat(c0["Temperature (Sensor edge) (C)"]));
             managePowerFlash(parseFloat(c0["Current Socket Graphics Package Power (W)"]));
@@ -438,13 +441,51 @@ HTML_TEMPLATE = """
 """
 
 # --- BACKEND LOGIC ---
-def get_real_gpu_data():
+def get_real_gpu_data() -> dict:
+    global use_rocm
+
+    if use_rocm:
+        try:
+            cmd = "rocm-smi --showmemuse --showpower --showtemp --showuse --json"
+            result = subprocess.check_output(cmd, shell=True, text=True)
+            data = json.loads(result)
+            startup = False
+            return data
+        except Exception as e:
+            use_rocm = False
+            print(f"[WARN] rocm-smi konnte nicht gestartet werden: {e}", file=sys.stderr)
+
     try:
-        cmd = "rocm-smi --showmemuse --showpower --showtemp --showuse --json"
-        result = subprocess.check_output(cmd, shell=True)
-        return json.loads(result)
+        cmd = (
+            "nvidia-smi "
+            "--query-gpu=temperature.gpu,power.draw,utilization.gpu,"
+            "memory.used,memory.total "
+            "--format=csv,noheader,nounits"
+        )
+        out = subprocess.check_output(cmd, shell=True, text=True).strip()
+
+        # CSV‑String → einzelne Werte (keine Einrückung, alles durch Komma getrennt)
+        temp, power, util, mem_used, mem_total = [float(v) for v in out.split(',')]
+
+        # Prozentualen Speicherverbrauch berechnen (auf ganze Zahl runden)
+        mem_percent = int(round((mem_used / mem_total) * 100)) if mem_total > 0 else 0
+
+        # Das gleiche JSON‑Schema wie bei rocm-smi
+        data = {
+            "card0": {
+                "Temperature (Sensor edge) (C)": f"{temp:.1f}",
+                "Current Socket Graphics Package Power (W)": f"{power:.3f}",
+                "GPU use (%)": f"{util:.0f}",
+                "GPU Memory Allocated (VRAM%)": f"{mem_percent}",
+                "Memory Activity": "N/A"            # rocm‑smi liefert dort "N/A"
+            }
+        }
+        return data
+
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "error": f"Kein GPU‑Monitoring‑Tool verfügbar: {e}"
+        }
 
 def get_simulated_data(start_time):
     elapsed = time.time() - start_time
@@ -506,4 +547,4 @@ def stats_quick():
         return {"error": str(e)}, 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8090, threaded=True)
+    app.run(host='0.0.0.0', port=8091, threaded=True)

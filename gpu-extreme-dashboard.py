@@ -2,6 +2,7 @@ import subprocess
 import json
 import time
 import sys
+import argparse
 from flask_cors import CORS
 from flask import Flask, Response, render_template_string, request
 
@@ -607,4 +608,8 @@ def stats_quick():
         return {"error": str(e)}, 500
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8091, threaded=True)
+    parser = argparse.ArgumentParser(description='GPU Extreme Dashboard')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host to bind to (default: 0.0.0.0)')
+    parser.add_argument('--port', type=int, default=8090, help='Port to listen on (default: 8090)')
+    args = parser.parse_args()
+    app.run(host=args.host, port=args.port, threaded=True)

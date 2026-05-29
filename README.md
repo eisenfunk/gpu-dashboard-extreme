@@ -55,10 +55,31 @@ Transform your LLM interface into a true Operating System. The WebUI function in
    pip install flask flask-cors
    ```
 3. **Start the Dashboard:**
-   ```bash
-   python gpu-extreme-dashboard.py
-   ```
-   The dashboard will be listening on `0.0.0.0:8090`. You can access it via `http://localhost:8090` or your local IP address.
+    ```bash
+    python gpu-extreme-dashboard.py
+    ```
+    The dashboard will be listening on `0.0.0.0:8090` by default. You can access it via `http://localhost:8090` or your local IP address.
+
+    ### Command Line Arguments
+
+    The dashboard supports the following command line arguments:
+
+    | Argument | Default | Description |
+    | :--- | :--- | :--- |
+    | `--host` | `0.0.0.0` | Host address to bind to |
+    | `--port` | `8090` | Port to listen on |
+
+    **Examples:**
+    ```bash
+    # Start with custom port
+    python gpu-extreme-dashboard.py --port 9000
+
+    # Start with custom host and port
+    python gpu-extreme-dashboard.py --host 127.0.0.1 --port 9000
+
+    # Start with default settings
+    python gpu-extreme-dashboard.py
+    ```
 
 ---
 

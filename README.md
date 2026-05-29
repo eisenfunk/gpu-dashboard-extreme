@@ -47,7 +47,7 @@ Transform your LLM interface into a true Operating System. The WebUI function in
 ### Setup
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/your-username/gpu-extreme-dashboard.git
+   git clone https://github.com/eisenfunk/gpu-extreme-dashboard.git
    cd gpu-extreme-dashboard
    ```
 2. **Install Dependencies:**

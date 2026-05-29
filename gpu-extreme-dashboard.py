@@ -1,6 +1,7 @@
 import subprocess
 import json
 import time
+import sys
 from flask_cors import CORS
 from flask import Flask, Response, render_template_string, request
 
@@ -167,21 +168,22 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        let currentDropsPerSecond = 0;
-        let powerFlashTimeout = null;
-        let vramShakeInterval = null;
-        
         const urlParams = new URLSearchParams(window.location.search);
         const animIntervalMs = (parseFloat(urlParams.get('interval')) || 2) * 1000;
 
-        // VRAM State Management
-        let vramState = {
-            intensity: 0,
-            baseBx: 1, // Die langsame Bloat-Skalierung
-            baseBy: 1,
-            startTime: 0
-        };
+        // --- Helper: Sweat/Droplet Effect ---
+        function createSweat(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            const drop = document.createElement('div');
+            drop.className = 'droplet';
+            drop.style.left = Math.random() * 90 + '%';
+            drop.style.animationDelay = (Math.random() * 0.2) + 's';
+            card.appendChild(drop);
+            setTimeout(() => drop.remove(), 1000);
+        }
 
+        // --- FireEffect Class (Temperature Visual) ---
         class FireEffect {
             constructor(elementId) {
                 this.el = document.getElementById(elementId);
@@ -236,93 +238,143 @@ HTML_TEMPLATE = """
             }
         }
 
-        function createSweat(cardId) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            const drop = document.createElement('div');
-            drop.className = 'droplet';
-            drop.style.left = Math.random() * 90 + '%';
-            drop.style.animationDelay = (Math.random() * 0.2) + 's';
-            card.appendChild(drop);
-            setTimeout(() => drop.remove(), 1000);
-        }
-
-        function managePowerFlash(pVal) {
-            const threshold = 50;
-            const baseLine = 55;
-            const maxLine = 85;
-            const card = document.getElementById('card-power');
-            const bPower = document.getElementById('b-power');
-            const vPower = document.getElementById('v-power');
-            let pIntensity = Math.max(0, Math.min((pVal - baseLine) / (maxLine - baseLine), 1));
-            const saturation = 100 * (1 - pIntensity);
-            const lightness = 50 + (50 * pIntensity);
-            vPower.innerText = pVal.toFixed(1) + "W";
-            bPower.style.width = Math.min((pVal / 90 * 100), 100) + "%";
-            bPower.style.backgroundColor = `hsl(200, ${saturation}%, ${lightness}%)`;
-            bPower.style.setProperty('--glow-blur', (pIntensity * 15) + 'px');
-            bPower.style.setProperty('--glow-opacity', pIntensity);
-            bPower.style.setProperty('--glow-color', `rgba(0, 212, 255, ${pIntensity})`);
-            if (pVal < threshold) {
-                card.classList.remove('state-lightning');
-                card.style.transform = 'rotate(0deg)';
-                if (powerFlashTimeout) { clearTimeout(powerFlashTimeout); powerFlashTimeout = null; }
-                return;
+        // --- GpuUsageEffect Class ---
+        class GpuUsageEffect {
+            constructor() {
+                this.cardId = 'card-gpu';
+                this.valueDisplayId = 'v-gpu';
+                this.barFillId = 'b-gpu';
+                this.dropsPerSecond = 0;
             }
-            if (powerFlashTimeout) return;
-            const runFlashCycle = () => {
-                const randomAngle = (Math.random() * 20 - 10);
-                card.classList.remove('state-lightning');
-                void card.offsetWidth;
-                card.classList.add('state-lightning');
-                card.style.transform = `rotate(${randomAngle}deg)`;
-                setTimeout(() => { card.style.transform = 'rotate(0deg)'; card.classList.remove('state-lightning'); }, 150);
-                const minGap = 110 * (1 - pIntensity) + 40;
-                const maxGap = (2000 - 1000 * pIntensity) * (1 - pIntensity) + 50;
-                powerFlashTimeout = setTimeout(runFlashCycle, Math.random() * (maxGap - minGap) + minGap);
-            };
-            runFlashCycle();
+            update(gVal) {
+                const val = parseFloat(gVal);
+                const vGpu = document.getElementById(this.valueDisplayId);
+                const bGpu = document.getElementById(this.barFillId);
+                vGpu.innerText = val.toFixed(0) + "%";
+                bGpu.style.width = Math.min(val, 100) + "%";
+                this.dropsPerSecond = val >= 70 ? 2 + (((val - 70) / 30) * 28) : 0;
+            }
+            getDropsPerSecond() {
+                return this.dropsPerSecond;
+            }
         }
 
-        function manageTemperaturStove(tVal) {
-            const minTemp = 40;
-            const maxTemp = 80;
-            let tIntensity = Math.min(Math.max((tVal - minTemp) / (maxTemp - minTemp), 0), 1);
-            tempCard.setIntensity(tIntensity);
-            document.getElementById('v-temp').innerText = tVal.toFixed(1) + "°C";
-            document.getElementById('b-temp').style.width = Math.min(tVal, 100) + "%";
-            const hue = 200 - ((tVal - 30) * (200 / 65));
-            document.getElementById('b-temp').style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
-            const cTempCard = document.getElementById('card-temp');
-            if (tVal > maxTemp) cTempCard.classList.add('state-meltdown'); else cTempCard.classList.remove('state-meltdown');
+        // --- PowerFlashEffect Class ---
+        class PowerFlashEffect {
+            constructor() {
+                this.cardId = 'card-power';
+                this.threshold = 50;
+                this.baseLine = 55;
+                this.maxLine = 85;
+                this.timeout = null;
+            }
+            update(pVal) {
+                const val = parseFloat(pVal);
+                const card = document.getElementById(this.cardId);
+                const bPower = document.getElementById('b-power');
+                const vPower = document.getElementById('v-power');
+                let pIntensity = Math.max(0, Math.min((val - this.baseLine) / (this.maxLine - this.baseLine), 1));
+                const saturation = 100 * (1 - pIntensity);
+                const lightness = 50 + (50 * pIntensity);
+                vPower.innerText = val.toFixed(1) + "W";
+                bPower.style.width = Math.min((val / 90 * 100), 100) + "%";
+                bPower.style.backgroundColor = `hsl(200, ${saturation}%, ${lightness}%)`;
+                bPower.style.setProperty('--glow-blur', (pIntensity * 15) + 'px');
+                bPower.style.setProperty('--glow-opacity', pIntensity);
+                bPower.style.setProperty('--glow-color', `rgba(0, 212, 255, ${pIntensity})`);
+                if (val < this.threshold) {
+                    card.classList.remove('state-lightning');
+                    card.style.transform = 'rotate(0deg)';
+                    if (this.timeout) { clearTimeout(this.timeout); this.timeout = null; }
+                    return;
+                }
+                if (this.timeout) return;
+                const runFlashCycle = () => {
+                    const randomAngle = (Math.random() * 20 - 10);
+                    card.classList.remove('state-lightning');
+                    void card.offsetWidth;
+                    card.classList.add('state-lightning');
+                    card.style.transform = `rotate(${randomAngle}deg)`;
+                    setTimeout(() => { card.style.transform = 'rotate(0deg)'; card.classList.remove('state-lightning'); }, 150);
+                    const minGap = 110 * (1 - pIntensity) + 40;
+                    const maxGap = (2000 - 1000 * pIntensity) * (1 - pIntensity) + 50;
+                    this.timeout = setTimeout(runFlashCycle, Math.random() * (maxGap - minGap) + minGap);
+                };
+                runFlashCycle();
+            }
         }
 
-        function manageGPUUsage(gVal) {
-            document.getElementById('v-gpu').innerText = gVal.toFixed(0) + "%";
-            document.getElementById('b-gpu').style.width = Math.min(gVal, 100) + "%";
-            currentDropsPerSecond = gVal >= 70 ? 2 + (((gVal - 70) / 30) * 28) : 0;
-        }   
+        // --- TemperatureStoveEffect Class ---
+        class TemperatureStoveEffect {
+            constructor() {
+                this.minTemp = 40;
+                this.maxTemp = 80;
+                this.fireEffect = null;
+            }
+            setFireEffect(fireEffect) {
+                this.fireEffect = fireEffect;
+            }
+            update(tVal) {
+                const val = parseFloat(tVal);
+                let tIntensity = Math.min(Math.max((val - this.minTemp) / (this.maxTemp - this.minTemp), 0), 1);
+                if (this.fireEffect) {
+                    this.fireEffect.setIntensity(tIntensity);
+                }
+                const vTemp = document.getElementById('v-temp');
+                const bTemp = document.getElementById('b-temp');
+                const cTempCard = document.getElementById('card-temp');
+                vTemp.innerText = val.toFixed(1) + "°C";
+                bTemp.style.width = Math.min(val, 100) + "%";
+                const hue = 200 - ((val - 30) * (200 / 65));
+                bTemp.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+                if (val > this.maxTemp) {
+                    cTempCard.classList.add('state-meltdown');
+                } else {
+                    cTempCard.classList.remove('state-meltdown');
+                }
+            }
+        }
 
-        function manageVRAMBloat(vVal) {
-            document.getElementById('v-vram').innerText = vVal.toFixed(0) + "%";
-            document.getElementById('b-vram').style.width = Math.min(vVal, 100) + "%";
-            const cVramCard = document.getElementById('card-vram');
-            const cVramContent = cVramCard.querySelector('.card-content');
-            
-            if (vVal > 70) {
-                const intensity = (vVal - 70) / 30;
-                vramState.intensity = intensity;
-                
+        // --- VramBloatEffect Class ---
+        class VramBloatEffect {
+            constructor() {
+                this.threshold = 70;
+                this.state = {
+                    intensity: 0,
+                    baseBx: 1,
+                    baseBy: 1,
+                    startTime: 0
+                };
+                this.shakeInterval = null;
+            }
+            update(vVal) {
+                const val = parseFloat(vVal);
+                const vVram = document.getElementById('v-vram');
+                const bVram = document.getElementById('b-vram');
+                const cVramCard = document.getElementById('card-vram');
+                const cVramContent = cVramCard.querySelector('.card-content');
+
+                vVram.innerText = val.toFixed(0) + "%";
+                bVram.style.width = Math.min(val, 100) + "%";
+
+                if (val > this.threshold) {
+                    this._handleActiveState(val, cVramCard, cVramContent);
+                } else {
+                    this._handleResetState(cVramCard, cVramContent);
+                }
+            }
+            _handleActiveState(val, cVramCard, cVramContent) {
+                const intensity = (val - this.threshold) / 30;
+                this.state.intensity = intensity;
+
                 // 1. Die "Base" Skalierung (das langsame Bloaten)
                 const bloomFactor = Math.sqrt(intensity);
-                vramState.baseBx = 1 + (0.2 * bloomFactor);
-                vramState.baseBy = 1 + (0.8 * bloomFactor);
+                this.state.baseBx = 1 + (0.2 * bloomFactor);
+                this.state.baseBy = 1 + (0.8 * bloomFactor);
 
-                // 2. Gegenmaßnahme für den Inhalt: 
-                // WICHTIG: Wir skalieren den Inhalt NUR gegen den Base-Wert.
-                // Dadurch bleibt die Schrift stabil, auch wenn die Box poppt/schrumpft.
-                const contentBx = 1 / vramState.baseBx;
-                const contentBy = 1 / vramState.baseBy;
+                // 2. Gegenmaßnahme für den Inhalt
+                const contentBx = 1 / this.state.baseBx;
+                const contentBy = 1 / this.state.baseBy;
                 cVramContent.style.setProperty('--app-bx', contentBx);
                 cVramContent.style.setProperty('--app-by', contentBy);
 
@@ -332,74 +384,24 @@ HTML_TEMPLATE = """
                 cVramCard.style.setProperty('--bg-lightness', (intensity * 15) + "%");
                 cVramCard.classList.add('state-pressure');
 
-                if (!vramShakeInterval) {
-                    vramState.startTime = Date.now();
-                    vramShakeInterval = setInterval(() => {
-                        const now = Date.now();
-                        let elapsed = now - vramState.startTime;
-
-                        if (elapsed >= animIntervalMs) {
-                            vramState.startTime = now;
-                            elapsed = 0;
-                        }
-
-                        const ratio = elapsed / animIntervalMs;
-                        let curBx, curBy;
-
-                        // --- PHASE LOGIC (Comic Style) ---
-                        if (ratio < 0.8) {
-                            // 1. Normal Bloat
-                            curBx = vramState.baseBx;
-                            curBy = vramState.baseBy;
-                        } else if (ratio < 0.9) {
-                            // 2. POP (+20%)
-                            curBx = vramState.baseBx * 1.2;
-                            curBy = vramState.baseBy * 1.2;
-                        } else if (ratio < 0.95) {
-                            // 3. SHRINK (auf 0% Intensität -> Scale 1.0)
-                            curBx = 1.0;
-                            curBy = 1.0;
-                        } else {
-                            // 4. OVERSHOOT (auf -10% Intensität -> Scale 0.9)
-                            curBx = 0.9;
-                            curBy = 0.9;
-                        }
-
-                        // --- JITTER (Nur in der Normal-Phase für knackiges Gefühl) ---
-                        const shakePower = vramState.intensity * vramState.intensity;
-                        const isJittering = (ratio < 0.8);
-                        const jitterScale = isJittering ? (1 - (shakePower * 0.08 * Math.sin(now / 40))) : 1;
-                        
-                        const finalBx = curBx * jitterScale;
-                        const finalBy = curBy * jitterScale;
-
-                        // Rattle Werte
-                        const rot = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
-                        const tx = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
-                        const ty = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
-
-                        // Apply to Card
-                        cVramCard.style.transform = `scale(${finalBx}, ${finalBy})`;
-
-                        // Apply to Content (Rotation/Translation)
-                        cVramContent.style.setProperty('--rot', rot + 'deg');
-                        cVramContent.style.setProperty('--tx', tx + 'px');
-                        cVramContent.style.setProperty('--ty', ty + 'px');
-
+                if (!this.shakeInterval) {
+                    this.state.startTime = Date.now();
+                    this.shakeInterval = setInterval(() => {
+                        this._animationTick(cVramCard, cVramContent);
                     }, 50);
                 }
-            } else {
-                // RESET
-                vramState.intensity = 0;
-                vramState.baseBx = 1;
-                vramState.baseBy = 1;
+            }
+            _handleResetState(cVramCard, cVramContent) {
+                this.state.intensity = 0;
+                this.state.baseBx = 1;
+                this.state.baseBy = 1;
                 cVramCard.classList.remove('state-pressure');
                 cVramCard.style.transform = 'scale(1, 1)';
                 cVramCard.style.setProperty('--br', '12px');
                 cVramCard.style.setProperty('--bg-lightness', '0%');
-                if (vramShakeInterval) {
-                    clearInterval(vramShakeInterval);
-                    vramShakeInterval = null;
+                if (this.shakeInterval) {
+                    clearInterval(this.shakeInterval);
+                    this.shakeInterval = null;
                 }
                 cVramContent.style.setProperty('--app-bx', '1');
                 cVramContent.style.setProperty('--app-by', '1');
@@ -407,8 +409,57 @@ HTML_TEMPLATE = """
                 cVramContent.style.setProperty('--tx', '0px');
                 cVramContent.style.setProperty('--ty', '0px');
             }
+            _animationTick(cVramCard, cVramContent) {
+                const now = Date.now();
+                let elapsed = now - this.state.startTime;
+
+                if (elapsed >= animIntervalMs) {
+                    this.state.startTime = now;
+                    elapsed = 0;
+                }
+
+                const ratio = elapsed / animIntervalMs;
+                let curBx, curBy;
+
+                // --- PHASE LOGIC (Comic Style) ---
+                if (ratio < 0.8) {
+                    curBx = this.state.baseBx;
+                    curBy = this.state.baseBy;
+                } else if (ratio < 0.9) {
+                    curBx = this.state.baseBx * 1.2;
+                    curBy = this.state.baseBy * 1.2;
+                } else if (ratio < 0.95) {
+                    curBx = 1.0;
+                    curBy = 1.0;
+                } else {
+                    curBx = 0.9;
+                    curBy = 0.9;
+                }
+
+                // --- JITTER (Nur in der Normal-Phase für knackiges Gefühl) ---
+                const shakePower = this.state.intensity * this.state.intensity;
+                const isJittering = (ratio < 0.8);
+                const jitterScale = isJittering ? (1 - (shakePower * 0.08 * Math.sin(now / 40))) : 1;
+                
+                const finalBx = curBx * jitterScale;
+                const finalBy = curBy * jitterScale;
+
+                // Rattle Werte
+                const rot = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
+                const tx = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
+                const ty = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
+
+                // Apply to Card
+                cVramCard.style.transform = `scale(${finalBx}, ${finalBy})`;
+
+                // Apply to Content (Rotation/Translation)
+                cVramContent.style.setProperty('--rot', rot + 'deg');
+                cVramContent.style.setProperty('--tx', tx + 'px');
+                cVramContent.style.setProperty('--ty', ty + 'px');
+            }
         }
 
+        // --- Dashboard Manager ---
         function updateDashboard(data) {
             if (data.error) {
                 document.getElementById('status-text').innerText = "Error: " + data.error;
@@ -416,17 +467,26 @@ HTML_TEMPLATE = """
             }
             document.getElementById('status-text').innerText = "LIVE";
             const c0 = data.card0;
-            manageTemperaturStove(parseFloat(c0["Temperature (Sensor edge) (C)"]));
-            managePowerFlash(parseFloat(c0["Current Socket Graphics Package Power (W)"]));
-            manageGPUUsage(parseFloat(c0["GPU use (%)"]));
-            manageVRAMBloat(parseFloat(c0["GPU Memory Allocated (VRAM%)"]));
+            temperatureStoveEffect.update(c0["Temperature (Sensor edge) (C)"]);
+            powerFlashEffect.update(c0["Current Socket Graphics Package Power (W)"]);
+            gpuUsageEffect.update(c0["GPU use (%)"]);
+            vramBloatEffect.update(c0["GPU Memory Allocated (VRAM%)"]);
         }
 
-        const tempCard = new FireEffect('card-temp');
+        // --- Initialize all effects ---
+        const fireEffect = new FireEffect('card-temp');
+        const temperatureStoveEffect = new TemperatureStoveEffect();
+        temperatureStoveEffect.setFireEffect(fireEffect);
+        const powerFlashEffect = new PowerFlashEffect();
+        const gpuUsageEffect = new GpuUsageEffect();
+        const vramBloatEffect = new VramBloatEffect();
+
+        // Sweat/droplet animation loop
         setInterval(() => {
-            if (currentDropsPerSecond > 0) {
+            const dropsPerSecond = gpuUsageEffect.getDropsPerSecond();
+            if (dropsPerSecond > 0) {
                 const intervalMs = 50;
-                const dropsToSpawnThisTick = (currentDropsPerSecond / 1000) * intervalMs;
+                const dropsToSpawnThisTick = (dropsPerSecond / 1000) * intervalMs;
                 for (let i = 0; i < Math.floor(dropsToSpawnThisTick); i++) { createSweat('card-gpu'); }
                 if (Math.random() < (dropsToSpawnThisTick % 1)) { createSweat('card-gpu'); }
             }

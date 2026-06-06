@@ -110,13 +110,16 @@ HTML_TEMPLATE = """
         const bloatAnimIntervalMs = 20;
         const bloatSequenceLength = 2000;
         const bloatThreshold = 60;
-        const powerThreshold = 50;
+        const powerThresholdMin = 55;
+        const powerThresholdMax = 80;
+        const fireThresholdLow = 40;
+        const fireThresholdHigh = 80;
 
         // Initialize all effects
         const fireEffect = new FireEffect('card-temp');
-        const temperatureStoveEffect = new TemperatureStoveEffect();
+        const temperatureStoveEffect = new TemperatureStoveEffect(fireThresholdLow, fireThresholdHigh, 'card-temp', 'v-temp', 'b-temp');
         temperatureStoveEffect.setFireEffect(fireEffect);
-        const powerFlashEffect = new PowerFlashEffect(powerThreshold, 'card-power', 'v-power', 'b-power');
+        const powerFlashEffect = new PowerFlashEffect(powerThresholdMin, powerThresholdMax, 'card-power', 'v-power', 'b-power');
         const gpuUsageEffect = new GpuUsageEffect('card-gpu', 'v-gpu', 'b-gpu');
         const vramBloatEffect = new VramBloatEffect(bloatAnimIntervalMs, bloatSequenceLength, bloatThreshold, 'card-vram', 'v-vram', 'b-vram');
         const sweatDropletEffect = new SweatDropletEffect(sweatAnimIntervalMs,'card-gpu');

@@ -1,8 +1,11 @@
 // --- TemperatureStoveEffect Class ---
 export class TemperatureStoveEffect {
-    constructor() {
-        this.minTemp = 40;
-        this.maxTemp = 80;
+    constructor(fireThresholdLow, fireThresholdHigh, cardId, vId, bId) {
+        this.minTemp = fireThresholdLow;
+        this.maxTemp = fireThresholdHigh;
+        this.cTempCard = document.getElementById(cardId);
+        this.vTemp = document.getElementById(vId);
+        this.bTemp = document.getElementById(bId);
         this.fireEffect = null;
     }
 
@@ -16,17 +19,14 @@ export class TemperatureStoveEffect {
         if (this.fireEffect) {
             this.fireEffect.setIntensity(tIntensity);
         }
-        const vTemp = document.getElementById('v-temp');
-        const bTemp = document.getElementById('b-temp');
-        const cTempCard = document.getElementById('card-temp');
-        vTemp.innerText = val.toFixed(1) + "°C";
-        bTemp.style.width = Math.min(val, 100) + "%";
+        this.vTemp.innerText = val.toFixed(1) + "°C";
+        this.bTemp.style.width = Math.min(val, 100) + "%";
         const hue = 200 - ((val - 30) * (200 / 65));
-        bTemp.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+        this.bTemp.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
         if (val > this.maxTemp) {
-            cTempCard.classList.add('state-meltdown');
+            this.cTempCard.classList.add('state-meltdown');
         } else {
-            cTempCard.classList.remove('state-meltdown');
+            this.cTempCard.classList.remove('state-meltdown');
         }
     }
 }

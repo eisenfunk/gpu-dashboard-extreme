@@ -1,20 +1,19 @@
 // --- PowerFlashEffect Class ---
 export class PowerFlashEffect {
-    constructor(threshold, cardId, vId, bId) {
+    constructor(thresholdMin, thresholdMax, cardId, vId, bId) {
         this.cardId = cardId;
 
         this.card = document.getElementById(cardId);
         this.bPower = document.getElementById(bId);
         this.vPower = document.getElementById(vId);
-        this.threshold = threshold;
-        this.baseLine = 55;
-        this.maxLine = 85;
+        this.thresholdMin = thresholdMin;
+        this.thresholdMax = thresholdMax;
         this.timeout = null;
     }
 
     update(pVal) {
         const val = parseFloat(pVal);
-        let pIntensity = Math.max(0, Math.min((val - this.baseLine) / (this.maxLine - this.baseLine), 1));
+        let pIntensity = Math.max(0, Math.min((val - this.thresholdMin) / (this.thresholdMax - this.thresholdMin), 1));
         const saturation = 100 * (1 - pIntensity);
         const lightness = 50 + (50 * pIntensity);
         this.vPower.innerText = val.toFixed(1) + "W";
@@ -23,7 +22,7 @@ export class PowerFlashEffect {
         this.bPower.style.setProperty('--glow-blur', (pIntensity * 15) + 'px');
         this.bPower.style.setProperty('--glow-opacity', pIntensity);
         this.bPower.style.setProperty('--glow-color', `rgba(0, 212, 255, ${pIntensity})`);
-        if (val < this.threshold) {
+        if (val < this.thresholdMin) {
             this.card.classList.remove('state-lightning');
             this.card.style.transform = 'rotate(0deg)';
             if (this.timeout) { clearTimeout(this.timeout); this.timeout = null; }

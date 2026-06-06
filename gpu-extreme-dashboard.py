@@ -4,14 +4,23 @@ import time
 import sys
 import argparse
 from flask_cors import CORS
-from flask import Flask, Response, render_template_string, request
+from flask import Flask, Response, render_template_string, request, send_from_directory
 
 use_rocm = True
 
 app = Flask(__name__)
 CORS(app)
 
-# --- DASHBOARD HTML & CSS ---
+# Serve static JS and CSS files
+@app.route('/js/<path:filename>')
+def serve_js(filename):
+    return send_from_directory('js', filename, mimetype='text/javascript')
+
+@app.route('/css/<path:filename>')
+def serve_css(filename):
+    return send_from_directory('css', filename, mimetype='text/css')
+
+# --- DASHBOARD HTML (CSS moved to external file, JS moved to external files) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="de">
@@ -19,88 +28,7 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPU Extreme Cockpit Widget</title>
-    <style>
-        body {
-            background: transparent;
-            color: #eee;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
-        #gpu-extreme-cockpit-v4 {
-            background: #050505;
-            color: #eee;
-            padding: 25px;
-            border-radius: 20px;
-            width: {{ widget_size }};
-            transition: width 0.3s ease;
-            box-sizing: border-box;
-        }
-        .grid {
-            display: grid;
-            grid-template-columns: repeat({{ col }}, 1fr);
-            gap: 15px;
-        }
-        .card {
-            background: hsl(0, 0%, calc(10% + var(--bg-lightness, 0%)));
-            padding: 15px;
-            border-radius: var(--br, 12px);
-            position: relative;
-            border: 1px solid #333;
-            transition: background-color 0.15s, box-shadow 0.15s, transform 0.3s ease-out, border-radius 0.3s ease-out, border-color 0.2s;
-            overflow: hidden;
-        }
-        .card-content {
-            position: relative;
-            z-index: 2;
-            /* Hier nutzen wir die CSS Variablen für die Skalierung */
-            transform: scale(var(--app-bx, 1), var(--app-by, 1)) rotate(var(--rot, 0deg)) translate(var(--tx, 0px), var(--ty, 0px));
-            transition: none !important;
-        }
-        .label { font-size: 0.65rem; color: #666; text-transform: uppercase; display: block; margin-bottom: 5px; }
-        .val { font-size: 1.4rem; font-weight: bold; display: block; margin-bottom: 10px; }
-        .bar-bg { background: #222; height: 8px; border-radius: 4px; width: 100%; overflow: visible; position: relative; }
-        .bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.1s linear, background-color 0.3s ease;
-        }
-        #b-power {
-            --glow-blur: 0px;
-            --glow-opacity: 0;
-            --glow-color: rgba(0, 212, 255, 1);
-            box-shadow: 0 0 var(--glow-blur) var(--glow-color);
-            transition: background-color 0.3s ease, box-shadow 0.2s ease-out, filter 0.2s ease-out, transform 0.1s ease-out;
-        }
-        .state-lightning #b-power {
-            background-color: #ffffff !important;
-            box-shadow: 0 0 25px 10px rgba(255, 255, 255, 0.9),
-                        0 0 40px 15px rgba(0, 212, 255, 0.7) !important;
-            filter: brightness(3) !important;
-        }
-        #config-form-container {
-            background: #1a1a1a; padding: 15px; border-radius: 12px; margin-bottom: 20px;
-            border: 1px solid #444; width: {{ width }}px; box-sizing: border-box;
-        }
-        .form-group { display: inline-block; margin-right: 10px; font-size: 0.8rem; }
-        input, select { background: #333; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; }
-        button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        
-        @keyframes meltdown-shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(4px, -4px); } 50% { transform: translate(-4px, 4px); } 75% { transform: translate(4px, 4px); } }
-        .state-meltdown { animation: meltdown-shake 0.05s infinite !important; background-color: #4a0000; box-shadow: 0 0 30px #ff0000 !important; border-color: #ff0000 !important; }
-        @keyframes lightning-burst { 0% { background-color: #1a1a1a; } 50% { background-color: #ffffff; } 100% { background-color: #1a1a1a; } }
-        .state-lightning { animation: lightning-burst 0.12s ease-out !important; }
-        .droplet { position: absolute; background: rgba(255, 255, 255, 0.5); width: 4px; height: 12px; border-radius: 50%; top: -15px; pointer-events: none; z-index: 5; animation: drip 0.8s linear forwards; }
-        @keyframes drip { to { transform: translateY(160px); opacity: 0; } }
-        .c-temp { background: #00d4ff; }
-        .c-gpu { background: #9c27b0; }
-        .c-vram { background: #e91e63; }
-    </style>
+    <link rel="stylesheet" href="/css/dashboard.css?{{ col }}{{ widget_size }}{{ width }}">
 </head>
 <body>
     {% if show_form %}
@@ -113,28 +41,28 @@ HTML_TEMPLATE = """
                     <option value="2" {% if col == 2 %}selected{% endif %}>2</option>
                     <option value="4" {% if col == 4 %}selected{% endif %}>4</option>
                 </select>
-            </div >
+            </div>
             <div class="form-group">
                 <label>Widget Size:</label>
                 <input type="text" name="widget_size" value="{{ widget_size }}" style="width: 80px;">
-            </div >
+            </div>
             <div class="form-group">
                 <label>Test:</label>
                 <select name="test">
                     <option value="false" {% if test == 'false' %}selected{% endif %}>Off</option>
                     <option value="true" {% if test == 'true' %}selected{% endif %}>On</option>
                 </select>
-            </div >
+            </div>
             <div class="form-group">
                 <label>Int (s):</label>
                 <input type="number" name="interval" value="{{ interval }}" style="width: 40px;">
-            </div >
+            </div>
             <input type="hidden" name="form" value="true">
             <button type="submit">Apply</button>
         </form>
-    </div >
+    </div>
     {% endif %}
-    <div id="gpu-extreme-cockpit-v4">
+    <div id="gpu-extreme-cockpit-v4" style="--cockpit-width: {{ widget_size }}; --form-width: {{ width }}px; --grid-cols: repeat({{ col }}, 1fr);">
         <div class="grid">
             <div class="card" id="card-temp">
                 <div class="card-content">
@@ -168,334 +96,39 @@ HTML_TEMPLATE = """
         <div style="text-align:center; margin-top:20px; font-size:0.6rem; color:#444;" id="status-text">Connecting...</div>
     </div>
 
-    <script>
+    <script type="module">
+        import { SweatDropletEffect } from '/js/effects/SweatDropletEffect.js';
+        import { FireEffect } from '/js/effects/FireEffect.js';
+        import { TemperatureStoveEffect } from '/js/effects/TemperatureStoveEffect.js';
+        import { PowerFlashEffect } from '/js/effects/PowerFlashEffect.js';
+        import { GpuUsageEffect } from '/js/effects/GpuUsageEffect.js';
+        import { VramBloatEffect } from '/js/effects/VramBloatEffect.js';
+        import { DashboardManager } from '/js/DashboardManager.js';
+
         const urlParams = new URLSearchParams(window.location.search);
-        const animIntervalMs = (parseFloat(urlParams.get('interval')) || 2) * 1000;
+        const sweatAnimIntervalMs = 50;
+        const bloatAnimIntervalMs = 20;
+        const bloatSequenceLength = 2000;
+        const bloatThreshold = 60;
+        const powerThreshold = 50;
 
-        // --- Helper: Sweat/Droplet Effect ---
-        function createSweat(cardId) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            const drop = document.createElement('div');
-            drop.className = 'droplet';
-            drop.style.left = Math.random() * 90 + '%';
-            drop.style.animationDelay = (Math.random() * 0.2) + 's';
-            card.appendChild(drop);
-            setTimeout(() => drop.remove(), 1000);
-        }
-
-        // --- FireEffect Class (Temperature Visual) ---
-        class FireEffect {
-            constructor(elementId) {
-                this.el = document.getElementById(elementId);
-                this.intensity = 0;
-                this.isFlashing = false;
-                this.COLOR_0 = { r: 255, g: 50, b: 0 };
-                this.COLOR_100 = { r: 100, g: 0, b: 140 };
-                this._updateBaseColor();
-                this._triggerGasFlash();
-            }
-            setIntensity(tIntensity) { this.intensity = Math.max(0, Math.min(1, tIntensity)); }
-            _lerp(start, end, t) { return start * (1 - t) + end * t; }
-            _getGlobalBrightness(t) {
-                if (t <= 0.8) { const phase = (t / 0.8) * (Math.PI / 2); return Math.sin(phase); }
-                return 1.0;
-            }
-            _updateBaseColor() {
-                if (this.isFlashing) { setTimeout(() => this._updateBaseColor(), 5); return; }
-                const t = this.intensity;
-                const globalLuminance = this._getGlobalBrightness(t);
-                let r = this._lerp(this.COLOR_0.r, this.COLOR_100.r, t);
-                let g = this._lerp(this.COLOR_0.g, this.COLOR_100.g, t);
-                let b = this._lerp(this.COLOR_0.b, this.COLOR_100.b, t);
-                const chaos = this._lerp(30, 60, t);
-                r += (Math.random() - 0.5) * chaos;
-                g += (Math.random() - 0.5) * chaos;
-                b += (Math.random() - 0.5) * chaos;
-                r *= globalLuminance; g *= globalLuminance; b *= globalLuminance;
-                this.el.style.backgroundColor = `rgb(${Math.round(Math.max(0, Math.min(255, r)))}, ${Math.round(Math.max(0, Math.min(255, g)))}, ${Math.round(Math.max(0, Math.min(255, b)))})`;
-                const nextTick = Math.random() * (this._lerp(170, 20, t) - this._lerp(80, 5, t)) + this._lerp(80, 5, t);
-                setTimeout(() => this._updateBaseColor(), nextTick);
-            }
-            _triggerGasFlash() {
-                const t = this.intensity;
-                const flashChance = this._lerp(0.3, 0.05, t);
-                if (Math.random() < flashChance) {
-                    this.isFlashing = true;
-                    const flashDuration = this._lerp(80, 5, t);
-                    const localFlashBrightness = this._lerp(1.0, 0.5, t);
-                    let rBase = this._lerp(255, 220, t);
-                    let gBase = this._lerp(255, 100, t);
-                    let bBase = this._lerp(200, 20, t);
-                    const drift = (Math.random() - 0.5) * 60;
-                    const lightningScale = Math.sqrt(this._getGlobalBrightness(t));
-                    let r = (rBase + drift) * localFlashBrightness * lightningScale;
-                    let g = (gBase + drift) * localFlashBrightness * lightningScale;
-                    let b = (bBase + drift) * localFlashBrightness * lightningScale;
-                    this.el.style.backgroundColor = `rgb(${Math.round(Math.max(0, Math.min(255, r)))}, ${Math.round(Math.max(0, Math.min(255, g)))}, ${Math.round(Math.max(0, Math.min(255, b)))})`;
-                    setTimeout(() => { this.isFlashing = false; }, flashDuration);
-                }
-                setTimeout(() => this._triggerGasFlash(), this._lerp(200, 10, t));
-            }
-        }
-
-        // --- GpuUsageEffect Class ---
-        class GpuUsageEffect {
-            constructor() {
-                this.cardId = 'card-gpu';
-                this.valueDisplayId = 'v-gpu';
-                this.barFillId = 'b-gpu';
-                this.dropsPerSecond = 0;
-            }
-            update(gVal) {
-                const val = parseFloat(gVal);
-                const vGpu = document.getElementById(this.valueDisplayId);
-                const bGpu = document.getElementById(this.barFillId);
-                vGpu.innerText = val.toFixed(0) + "%";
-                bGpu.style.width = Math.min(val, 100) + "%";
-                this.dropsPerSecond = val >= 70 ? 2 + (((val - 70) / 30) * 28) : 0;
-            }
-            getDropsPerSecond() {
-                return this.dropsPerSecond;
-            }
-        }
-
-        // --- PowerFlashEffect Class ---
-        class PowerFlashEffect {
-            constructor() {
-                this.cardId = 'card-power';
-                this.threshold = 50;
-                this.baseLine = 55;
-                this.maxLine = 85;
-                this.timeout = null;
-            }
-            update(pVal) {
-                const val = parseFloat(pVal);
-                const card = document.getElementById(this.cardId);
-                const bPower = document.getElementById('b-power');
-                const vPower = document.getElementById('v-power');
-                let pIntensity = Math.max(0, Math.min((val - this.baseLine) / (this.maxLine - this.baseLine), 1));
-                const saturation = 100 * (1 - pIntensity);
-                const lightness = 50 + (50 * pIntensity);
-                vPower.innerText = val.toFixed(1) + "W";
-                bPower.style.width = Math.min((val / 90 * 100), 100) + "%";
-                bPower.style.backgroundColor = `hsl(200, ${saturation}%, ${lightness}%)`;
-                bPower.style.setProperty('--glow-blur', (pIntensity * 15) + 'px');
-                bPower.style.setProperty('--glow-opacity', pIntensity);
-                bPower.style.setProperty('--glow-color', `rgba(0, 212, 255, ${pIntensity})`);
-                if (val < this.threshold) {
-                    card.classList.remove('state-lightning');
-                    card.style.transform = 'rotate(0deg)';
-                    if (this.timeout) { clearTimeout(this.timeout); this.timeout = null; }
-                    return;
-                }
-                if (this.timeout) return;
-                const runFlashCycle = () => {
-                    const randomAngle = (Math.random() * 20 - 10);
-                    card.classList.remove('state-lightning');
-                    void card.offsetWidth;
-                    card.classList.add('state-lightning');
-                    card.style.transform = `rotate(${randomAngle}deg)`;
-                    setTimeout(() => { card.style.transform = 'rotate(0deg)'; card.classList.remove('state-lightning'); }, 150);
-                    const minGap = 110 * (1 - pIntensity) + 40;
-                    const maxGap = (2000 - 1000 * pIntensity) * (1 - pIntensity) + 50;
-                    this.timeout = setTimeout(runFlashCycle, Math.random() * (maxGap - minGap) + minGap);
-                };
-                runFlashCycle();
-            }
-        }
-
-        // --- TemperatureStoveEffect Class ---
-        class TemperatureStoveEffect {
-            constructor() {
-                this.minTemp = 40;
-                this.maxTemp = 80;
-                this.fireEffect = null;
-            }
-            setFireEffect(fireEffect) {
-                this.fireEffect = fireEffect;
-            }
-            update(tVal) {
-                const val = parseFloat(tVal);
-                let tIntensity = Math.min(Math.max((val - this.minTemp) / (this.maxTemp - this.minTemp), 0), 1);
-                if (this.fireEffect) {
-                    this.fireEffect.setIntensity(tIntensity);
-                }
-                const vTemp = document.getElementById('v-temp');
-                const bTemp = document.getElementById('b-temp');
-                const cTempCard = document.getElementById('card-temp');
-                vTemp.innerText = val.toFixed(1) + "°C";
-                bTemp.style.width = Math.min(val, 100) + "%";
-                const hue = 200 - ((val - 30) * (200 / 65));
-                bTemp.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
-                if (val > this.maxTemp) {
-                    cTempCard.classList.add('state-meltdown');
-                } else {
-                    cTempCard.classList.remove('state-meltdown');
-                }
-            }
-        }
-
-        // --- VramBloatEffect Class ---
-        class VramBloatEffect {
-            constructor() {
-                this.threshold = 70;
-                this.state = {
-                    intensity: 0,
-                    baseBx: 1,
-                    baseBy: 1,
-                    startTime: 0
-                };
-                this.shakeInterval = null;
-            }
-            update(vVal) {
-                const val = parseFloat(vVal);
-                const vVram = document.getElementById('v-vram');
-                const bVram = document.getElementById('b-vram');
-                const cVramCard = document.getElementById('card-vram');
-                const cVramContent = cVramCard.querySelector('.card-content');
-
-                vVram.innerText = val.toFixed(0) + "%";
-                bVram.style.width = Math.min(val, 100) + "%";
-
-                if (val > this.threshold) {
-                    this._handleActiveState(val, cVramCard, cVramContent);
-                } else {
-                    this._handleResetState(cVramCard, cVramContent);
-                }
-            }
-            _handleActiveState(val, cVramCard, cVramContent) {
-                const intensity = (val - this.threshold) / 30;
-                this.state.intensity = intensity;
-
-                // 1. Die "Base" Skalierung (das langsame Bloaten)
-                const bloomFactor = Math.sqrt(intensity);
-                this.state.baseBx = 1 + (0.2 * bloomFactor);
-                this.state.baseBy = 1 + (0.8 * bloomFactor);
-
-                // 2. Gegenmaßnahme für den Inhalt
-                const contentBx = 1 / this.state.baseBx;
-                const contentBy = 1 / this.state.baseBy;
-                cVramContent.style.setProperty('--app-bx', contentBx);
-                cVramContent.style.setProperty('--app-by', contentBy);
-
-                // Radius & Background (basierend auf Base-Bloat)
-                const brPercent = 8 + (intensity * 42);
-                cVramCard.style.setProperty('--br', brPercent + '%');
-                cVramCard.style.setProperty('--bg-lightness', (intensity * 15) + "%");
-                cVramCard.classList.add('state-pressure');
-
-                if (!this.shakeInterval) {
-                    this.state.startTime = Date.now();
-                    this.shakeInterval = setInterval(() => {
-                        this._animationTick(cVramCard, cVramContent);
-                    }, 50);
-                }
-            }
-            _handleResetState(cVramCard, cVramContent) {
-                this.state.intensity = 0;
-                this.state.baseBx = 1;
-                this.state.baseBy = 1;
-                cVramCard.classList.remove('state-pressure');
-                cVramCard.style.transform = 'scale(1, 1)';
-                cVramCard.style.setProperty('--br', '12px');
-                cVramCard.style.setProperty('--bg-lightness', '0%');
-                if (this.shakeInterval) {
-                    clearInterval(this.shakeInterval);
-                    this.shakeInterval = null;
-                }
-                cVramContent.style.setProperty('--app-bx', '1');
-                cVramContent.style.setProperty('--app-by', '1');
-                cVramContent.style.setProperty('--rot', '0deg');
-                cVramContent.style.setProperty('--tx', '0px');
-                cVramContent.style.setProperty('--ty', '0px');
-            }
-            _animationTick(cVramCard, cVramContent) {
-                const now = Date.now();
-                let elapsed = now - this.state.startTime;
-
-                if (elapsed >= animIntervalMs) {
-                    this.state.startTime = now;
-                    elapsed = 0;
-                }
-
-                const ratio = elapsed / animIntervalMs;
-                let curBx, curBy;
-
-                // --- PHASE LOGIC (Comic Style) ---
-                if (ratio < 0.8) {
-                    curBx = this.state.baseBx;
-                    curBy = this.state.baseBy;
-                } else if (ratio < 0.9) {
-                    curBx = this.state.baseBx * 1.2;
-                    curBy = this.state.baseBy * 1.2;
-                } else if (ratio < 0.95) {
-                    curBx = 1.0;
-                    curBy = 1.0;
-                } else {
-                    curBx = 0.9;
-                    curBy = 0.9;
-                }
-
-                // --- JITTER (Nur in der Normal-Phase für knackiges Gefühl) ---
-                const shakePower = this.state.intensity * this.state.intensity;
-                const isJittering = (ratio < 0.8);
-                const jitterScale = isJittering ? (1 - (shakePower * 0.08 * Math.sin(now / 40))) : 1;
-                
-                const finalBx = curBx * jitterScale;
-                const finalBy = curBy * jitterScale;
-
-                // Rattle Werte
-                const rot = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
-                const tx = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
-                const ty = (Math.random() * 4 - 2) * shakePower * (isJittering ? 1 : 0.2);
-
-                // Apply to Card
-                cVramCard.style.transform = `scale(${finalBx}, ${finalBy})`;
-
-                // Apply to Content (Rotation/Translation)
-                cVramContent.style.setProperty('--rot', rot + 'deg');
-                cVramContent.style.setProperty('--tx', tx + 'px');
-                cVramContent.style.setProperty('--ty', ty + 'px');
-            }
-        }
-
-        // --- Dashboard Manager ---
-        function updateDashboard(data) {
-            if (data.error) {
-                document.getElementById('status-text').innerText = "Error: " + data.error;
-                return;
-            }
-            document.getElementById('status-text').innerText = "LIVE";
-            const c0 = data.card0;
-            temperatureStoveEffect.update(c0["Temperature (Sensor edge) (C)"]);
-            powerFlashEffect.update(c0["Current Socket Graphics Package Power (W)"]);
-            gpuUsageEffect.update(c0["GPU use (%)"]);
-            vramBloatEffect.update(c0["GPU Memory Allocated (VRAM%)"]);
-        }
-
-        // --- Initialize all effects ---
+        // Initialize all effects
         const fireEffect = new FireEffect('card-temp');
         const temperatureStoveEffect = new TemperatureStoveEffect();
         temperatureStoveEffect.setFireEffect(fireEffect);
-        const powerFlashEffect = new PowerFlashEffect();
-        const gpuUsageEffect = new GpuUsageEffect();
-        const vramBloatEffect = new VramBloatEffect();
+        const powerFlashEffect = new PowerFlashEffect(powerThreshold, 'card-power', 'v-power', 'b-power');
+        const gpuUsageEffect = new GpuUsageEffect('card-gpu', 'v-gpu', 'b-gpu');
+        const vramBloatEffect = new VramBloatEffect(bloatAnimIntervalMs, bloatSequenceLength, bloatThreshold, 'card-vram', 'v-vram', 'b-vram');
+        const sweatDropletEffect = new SweatDropletEffect(sweatAnimIntervalMs,'card-gpu');
 
-        // Sweat/droplet animation loop
-        setInterval(() => {
-            const dropsPerSecond = gpuUsageEffect.getDropsPerSecond();
-            if (dropsPerSecond > 0) {
-                const intervalMs = 50;
-                const dropsToSpawnThisTick = (dropsPerSecond / 1000) * intervalMs;
-                for (let i = 0; i < Math.floor(dropsToSpawnThisTick); i++) { createSweat('card-gpu'); }
-                if (Math.random() < (dropsToSpawnThisTick % 1)) { createSweat('card-gpu'); }
-            }
-        }, 50);
-
-        const eventSource = new EventSource(`/stream?interval=${urlParams.get('interval') || 2}&test=${urlParams.get('test') || 'false'}`);
-        eventSource.onmessage = (e) => updateDashboard(JSON.parse(e.data));
-        eventSource.onerror = () => document.getElementById('status-text').innerText = "Connection lost...";
+        // Initialize Dashboard Manager
+        const dashboard = new DashboardManager(
+            temperatureStoveEffect,
+            powerFlashEffect,
+            gpuUsageEffect,
+            vramBloatEffect,
+            sweatDropletEffect
+        );
     </script>
 </body>
 </html>

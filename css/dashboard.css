@@ -1,0 +1,91 @@
+body {
+    background: transparent;
+    color: #eee;
+    font-family: 'Segoe UI', sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+
+#gpu-extreme-cockpit-v4 {
+    background: #050505;
+    color: #eee;
+    padding: 25px;
+    border-radius: 20px;
+    width: var(--cockpit-width, 520px);
+    transition: width 0.3s ease;
+    box-sizing: border-box;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: var(--grid-cols, repeat(2, 1fr));
+    gap: 15px;
+}
+
+.card {
+    background: hsl(0, 0%, calc(10% + var(--bg-lightness, 0%)));
+    padding: 15px;
+    border-radius: var(--br, 12px);
+    position: relative;
+    border: 1px solid #333;
+    transition: background-color 0.15s, box-shadow 0.15s, border-radius 0.3s ease-out, border-color 0.2s, width 0.1s, height 0.1s;
+    overflow: visible;
+}
+
+.card-content {
+    position: relative;
+    z-index: 2;
+    transform: scale(var(--app-bx, 1), var(--app-by, 1)) rotate(var(--rot, 0deg)) translate(var(--tx, 0px), var(--ty, 0px));
+    transition: none !important;
+}
+
+.label { font-size: 0.65rem; color: #666; text-transform: uppercase; display: block; margin-bottom: 5px; }
+.val { font-size: 1.4rem; font-weight: bold; display: block; margin-bottom: 10px; }
+.bar-bg { background: #222; height: 8px; border-radius: 4px; width: 100%; overflow: visible; position: relative; }
+.bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.1s linear, background-color 0.3s ease;
+}
+
+#b-power {
+    --glow-blur: 0px;
+    --glow-opacity: 0;
+    --glow-color: rgba(0, 212, 255, 1);
+    box-shadow: 0 0 var(--glow-blur) var(--glow-color);
+    transition: background-color 0.3s ease, box-shadow 0.2s ease-out, filter 0.2s ease-out, transform 0.1s ease-out;
+}
+
+.state-lightning #b-power {
+    background-color: #ffffff !important;
+    box-shadow: 0 0 25px 10px rgba(255, 255, 255, 0.9),
+                0 0 40px 15px rgba(0, 212, 255, 0.7) !important;
+    filter: brightness(3) !important;
+}
+
+#config-form-container {
+    background: #1a1a1a; padding: 15px; border-radius: 12px; margin-bottom: 20px;
+    border: 1px solid #444; width: var(--form-width, 520px); box-sizing: border-box;
+}
+
+.form-group { display: inline-block; margin-right: 10px; font-size: 0.8rem; }
+input, select { background: #333; border: 1px solid #555; color: white; padding: 5px; border-radius: 4px; }
+button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; } 
+
+@keyframes meltdown-shake { 0%, 100% { transform: translate(0,0); } 25% { transform: translate(4px, -4px); } 50% { transform: translate(-4px, 4px); } 75% { transform: translate(4px, 4px); } }
+.state-meltdown { animation: meltdown-shake 0.05s infinite !important; background-color: #4a0000; box-shadow: 0 0 30px #ff0000 !important; border-color: #ff0000 !important; }
+
+@keyframes lightning-burst { 0% { background-color: #1a1a1a; } 50% { background-color: #ffffff; } 100% { background-color: #1a1a1a; } }
+.state-lightning { animation: lightning-burst 0.12s ease-out !important; }
+
+.droplet { position: absolute; background: rgba(255, 255, 255, 0.5); width: 4px; height: 12px; border-radius: 50%; top: -15px; pointer-events: none; z-index: 5; animation: drip 0.8s linear forwards; }
+@keyframes drip { to { transform: translateY(160px); opacity: 0; } }
+
+.c-temp { background: #00d4ff; }
+.c-gpu { background: #9c27b0; }
+.c-vram { background: #e91e63; }

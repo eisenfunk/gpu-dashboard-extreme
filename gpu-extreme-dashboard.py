@@ -8,11 +8,11 @@ from flask_cors import CORS
 from flask import Flask, Response, render_template_string, request, send_from_directory
 
 use_rocm = True
+restart = True
 
 app = Flask(__name__)
 CORS(app)
 
-# Serve static JS and CSS files
 @app.route('/js/<path:filename>')
 def serve_js(filename):
     return send_from_directory('js', filename, mimetype='text/javascript')
@@ -21,7 +21,6 @@ def serve_js(filename):
 def serve_css(filename):
     return send_from_directory('css', filename, mimetype='text/css')
 
-# --- DASHBOARD HTML (CSS moved to external file, JS moved to external files) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="de">
@@ -254,6 +253,7 @@ def index():
     widget_size = request.args.get('widget_size')
     if not widget_size:
         widget_size = f"{width}px"
+    # Füge einen Parameter hinzu, der anzeigt, dass das Skript neu gestartet wurde
     return render_template_string(
         HTML_TEMPLATE,
         col=col,
@@ -261,7 +261,8 @@ def index():
         show_form=show_form,
         test=test,
         interval=interval,
-        widget_size=widget_size
+        widget_size=widget_size,
+        restart=True
     )
 
 @app.route('/stream')
@@ -269,6 +270,7 @@ def stream():
     is_test = request.args.get('test') == 'true'
     interval = int(request.args.get('interval', 2))
     def event_stream():
+        global restart
         sim_start_time = time.time()
         while True:
             gpu_data = get_simulated_data(sim_start_time) if is_test else get_real_gpu_data()
@@ -280,7 +282,20 @@ def stream():
                 "cpu": cpu_data
             }
             
-            yield f"data: {json.dumps(combined_data)}\n\n"
+            # Prüfe auf reload-Flag im JSON
+            global last_json_data
+            if restart == True:
+                # Wenn reload=True, sende ein spezielles Signal an den Browser
+                reload_data = {
+                    "reload": True,
+                    "data": combined_data
+                }
+                yield f"data: {json.dumps(reload_data)}\n\n"
+                restart = False
+            else:
+                yield f"data: {json.dumps(combined_data)}\n\n"
+            
+            last_json_data = combined_data
             time.sleep(interval)
     return Response(event_stream(), mimetype='text/event-stream')
 

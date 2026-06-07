@@ -14,17 +14,13 @@ export class DashboardManager {
         this._setupEventSource();
     }
 
-    updateDashboard(data) {
-        // Debug-Ausgabe für die empfangenen Daten
-        console.log('Empfangene Dashboard-Daten:', data);
-        
+    updateDashboard(data) {        
         if (data.error) {
             document.getElementById('status-text').innerText = "Error: " + data.error;
             return;
         }
         document.getElementById('status-text').innerText = "LIVE";
         
-        // Verarbeite GPU-Daten
         if (data.gpu && data.gpu.card0) {
             const c0 = data.gpu.card0;
             this.temperatureStoveEffect.update(c0["Temperature (Sensor edge) (C)"]);
@@ -34,7 +30,6 @@ export class DashboardManager {
             this.sweatDropletEffect.update(this.gpuUsageEffect.getDropsPerSecond());
         }
         
-        // Verarbeite CPU-Daten
         if (data.cpu) {
             this.cpuUpdate.update(data.cpu);
         }
@@ -67,7 +62,14 @@ export class DashboardManager {
         };
 
         this.eventSource.onmessage = (e) => {
-            this.updateDashboard(JSON.parse(e.data));
+            const data = JSON.parse(e.data);
+            if (data.reload === true) {
+                // Reload browser if server demands it
+                window.location.reload();
+                this._setConnectionStatus('Reload');
+                return;
+            }
+            this.updateDashboard(data.data || data);
         };
 
         this.eventSource.onerror = () => {

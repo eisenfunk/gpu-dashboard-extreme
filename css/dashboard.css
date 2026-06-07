@@ -1,3 +1,4 @@
+/* --- DASHBOARD CSS --- */
 body {
     background: transparent;
     color: #eee;
@@ -35,7 +36,6 @@ body {
     border: 1px solid #333;
     transition: background-color 0.15s, box-shadow 0.15s, border-radius 0.3s ease-out, border-color 0.2s, width 0.1s, height 0.1s;
     overflow: hidden;
-    /* Ensure droplets stay within card boundaries */
     contain: layout style paint;
 }
 
@@ -121,7 +121,6 @@ button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4p
    border: 1px solid #444;
 }
 
-/* Set exact height for CPU card to match other cards pattern */
 #card-cpu {
    height: 215px !important;
    box-sizing: border-box;
@@ -151,7 +150,6 @@ button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4p
    padding: 15px;
 }
 
-/* Ensure CPU cores container properly utilizes the available space */
 #cpu-cores-container {
    flex: 1;
    display: grid;
@@ -203,7 +201,6 @@ button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4p
     z-index: 1;
 }
 
-/* Ensure CPU core bars work properly within the fixed height */
 #cpu-cores-container .cpu-core-bar-container {
    height: 100%;
 }

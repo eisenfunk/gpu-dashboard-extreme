@@ -2,7 +2,8 @@
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.8%2B-brightgreen.svg)
-![Platform](https://img.shields.io/badge/platform-AMD%20ROCm-red.svg)
+![Platform](https://img.shields.io/badge/platform-AMD%20ROCm-brightgreen.svg)
+![Platform](https://img.shields.io/badge/platform-NVIDIA%20CUDA-red.svg)
 ![Integration](https://img.shields.io/badge/integration-Open--WebUI-orange.svg)
 
 **GPU Extreme Dashboard** is a high-performance monitoring suite that transforms hardware telemetry into a visual experience. It is divided into two specialized modules: a **Visual Cockpit** for streamers (OBS) and a **Seamless Telemetry Integration** for Open-WebUI.
@@ -111,6 +112,40 @@ Control the widget behavior directly via URL parameters in your browser or OBS:
 3. Enter the URL: `http://localhost:8090/?col=4&interval=2` (or your custom configuration).
 4. Set the width and height according to your layout.
 5. **Done!** Your cockpit is live.
+
+---
+
+🧠 Monitoring Philosophy: Signal vs. Noise
+
+This tool follows a radical but necessary approach: We do not measure utilization; we measure saturation.
+
+In the world of monitoring, administrators are often overwhelmed by a flood of metrics. These metrics create an illusion of control but often result in nothing more than "Data Hoarding." Our goal is to eliminate "Dashboard Fatigue."
+
+FAQ – Why don't we measure everything?
+
+Why differ this CPU Usage to other, classical ones?
+
+Nowaday CPU's have multiple cores and threads. A usage of 100% would reflect a usage of 100%. If your application is not capable of smp, than this is not your systems fault. We're not interested in having 1600% load on 16 cores. 16 cores with a 100% load is a 100%, no more no less.
+
+Why don't we measure CPU Usage as other monitoring tools?
+
+CPU Usage only tells you how much time the processor spent performing calculations. A system can be at 100% usage and still function perfectly, provided every task gets its allotted time.
+We measure Load. Load tells you how many processes are waiting for a core. Only when the Load exceeds the number of available cores has the system reached its true capacity limit. That is the only number that matters for system stability.
+
+Why don't we measure Memory Usage (RAM %)?
+
+Asking "how much RAM is being used?" is almost always the wrong question. Modern operating systems are designed to use as much available RAM as possible for caching and buffering to increase performance. A RAM usage of 95% is often a sign of an efficient OS, not a failing one.
+Memory only becomes a bottleneck when it creates Memory Pressure (e.g., excessive swapping), which forces the CPU to wait. This waiting is directly reflected in the CPU Load. Therefore, measuring pure RAM consumption is merely unnecessary noise for our specific goal: determining the system's limit.
+
+Why don't we measure Disk I/O?
+
+High disk throughput does not mean a system is slow; it simply means work is being done. What matters is I/O Wait—the time processes spend stalled while waiting for the disk. This wait time is a primary driver of CPU Load. Instead of monitoring fragmented disk metrics, we observe the ultimate consequence: Is the Load increasing because of I/O bottlenecks? If yes, the limit has been reached.
+Why only one single metric?
+
+Because we are looking for a binary answer: "Is the system at its limit?"
+Most monitoring tools provide hundreds of indicators based on "what if" scenarios. We provide a signal. When the value reaches 1.0, the system is at capacity. Everything else is irrelevant to the immediate decision of whether the system is overloaded.
+
+Less metrics. More clarity. Faster action.
 
 ---
 

@@ -5,7 +5,7 @@ import sys
 import argparse
 import psutil
 from flask_cors import CORS
-from flask import Flask, Response, render_template_string, request, send_from_directory
+from flask import Flask, Response, render_template, request, send_from_directory
 
 use_rocm = True
 restart = True
@@ -21,131 +21,6 @@ def serve_js(filename):
 def serve_css(filename):
     return send_from_directory('css', filename, mimetype='text/css')
 
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPU Extreme Cockpit Widget</title>
-    <link rel="stylesheet" href="/css/dashboard.css?{{ col }}{{ widget_size }}{{ width }}">
-</head>
-<body>
-    {% if show_form %}
-    <div id="config-form-container">
-        <form action="/" method="get">
-            <div class="form-group">
-                <label>Cols:</label>
-                <select name="col">
-                    <option value="1" {% if col == 1 %}selected{% endif %}>1</option>
-                    <option value="2" {% if col == 2 %}selected{% endif %}>2</option>
-                    <option value="4" {% if col == 4 %}selected{% endif %}>4</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Widget Size:</label>
-                <input type="text" name="widget_size" value="{{ widget_size }}" style="width: 80px;">
-            </div>
-            <div class="form-group">
-                <label>Test:</label>
-                <select name="test">
-                    <option value="false" {% if test == 'false' %}selected{% endif %}>Off</option>
-                    <option value="true" {% if test == 'true' %}selected{% endif %}>On</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Int (s):</label>
-                <input type="number" name="interval" value="{{ interval }}" style="width: 40px;">
-            </div>
-            <input type="hidden" name="form" value="true">
-            <button type="submit">Apply</button>
-        </form>
-    </div>
-    {% endif %}
-    <div id="gpu-extreme-cockpit-v4" style="--cockpit-width: {{ widget_size }}; --form-width: {{ width }}px; --grid-cols: repeat({{ col }}, 1fr);">
-        <div class="grid">
-            <div class="card" id="card-temp">
-                <div class="card-content">
-                    <span class="label">Temp</span>
-                    <span class="val" id="v-temp">--</span>
-                    <div class="bar-bg"><div id="b-temp" class="bar-fill c-temp"></div></div>
-                </div>
-            </div>
-            <div class="card" id="card-power">
-                <div class="card-content">
-                    <span class="label">Power</span>
-                    <span class="val" id="v-power">--</span>
-                    <div class="bar-bg"><div id="b-power" class="bar-fill"></div></div>
-                </div>
-            </div>
-            <div class="card" id="card-gpu">
-                <div class="card-content">
-                    <span class="label">GPU</span>
-                    <span class="val" id="v-gpu">--</span>
-                    <div class="bar-bg"><div id="b-gpu" class="bar-fill c-gpu"></div></div>
-                </div>
-            </div>
-            <div class="card" id="card-vram">
-                <div class="card-content">
-                    <span class="label">VRAM</span>
-                    <span class="val" id="v-vram">--</span>
-                    <div class="bar-bg"><div id="b-vram" class="bar-fill c-vram"></div></div>
-                </div>
-            </div>
-
-            <div class="card" id="card-cpu">
-                <div class="card-content">
-                    <span class="label">CPU</span>
-                    <span class="val" id="v-cpu">--</span>
-                    <div id="cpu-cores-container" class="cpu-cores-container">
-                        <!-- CPU Cores werden hier dynamisch eingefügt -->
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div style="text-align:center; margin-top:20px; font-size:0.6rem; color:#444;" id="status-text">Connecting...</div>
-    </div>
-
-    <script type="module">
-        import { SweatDropletEffect } from '/js/effects/SweatDropletEffect.js';
-        import { FireEffect } from '/js/effects/FireEffect.js';
-        import { TemperatureStoveEffect } from '/js/effects/TemperatureStoveEffect.js';
-        import { PowerFlashEffect } from '/js/effects/PowerFlashEffect.js';
-        import { GpuUsageEffect } from '/js/effects/GpuUsageEffect.js';
-        import { VramBloatEffect } from '/js/effects/VramBloatEffect.js';
-        import { DashboardManager } from '/js/DashboardManager.js';
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const sweatAnimIntervalMs = 50;
-        const bloatAnimIntervalMs = 20;
-        const bloatSequenceLength = 2000;
-        const bloatThreshold = 60;
-        const powerThresholdMin = 55;
-        const powerThresholdMax = 80;
-        const fireThresholdLow = 40;
-        const fireThresholdHigh = 80;
-
-        // Initialize all effects
-        const fireEffect = new FireEffect('card-temp');
-        const temperatureStoveEffect = new TemperatureStoveEffect(fireThresholdLow, fireThresholdHigh, 'card-temp', 'v-temp', 'b-temp');
-        temperatureStoveEffect.setFireEffect(fireEffect);
-        const powerFlashEffect = new PowerFlashEffect(powerThresholdMin, powerThresholdMax, 'card-power', 'v-power', 'b-power');
-        const gpuUsageEffect = new GpuUsageEffect('card-gpu', 'v-gpu', 'b-gpu');
-        const vramBloatEffect = new VramBloatEffect(bloatAnimIntervalMs, bloatSequenceLength, bloatThreshold, 'card-vram', 'v-vram', 'b-vram');
-        const sweatDropletEffect = new SweatDropletEffect(sweatAnimIntervalMs,'card-gpu');
-
-        // Initialize Dashboard Manager
-        const dashboard = new DashboardManager(
-            temperatureStoveEffect,
-            powerFlashEffect,
-            gpuUsageEffect,
-            vramBloatEffect,
-            sweatDropletEffect
-        );
-    </script>
-</body>
-</html>
-"""
 
 # --- BACKEND LOGIC ---
 def get_cpu_data() -> dict:
@@ -254,8 +129,8 @@ def index():
     if not widget_size:
         widget_size = f"{width}px"
     # Füge einen Parameter hinzu, der anzeigt, dass das Skript neu gestartet wurde
-    return render_template_string(
-        HTML_TEMPLATE,
+    return render_template(
+        'dashboard.html',
         col=col,
         width=width,
         show_form=show_form,

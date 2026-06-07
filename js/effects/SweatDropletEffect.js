@@ -1,7 +1,7 @@
 // --- SweatDropletEffect Class ---
 export class SweatDropletEffect {
     constructor(sweatAnimIntervalMs, cardId) {
-        this.card = document.getElementById(cardId);;
+        this.card = document.getElementById(cardId);
         this.sweatAnimIntervalMs = sweatAnimIntervalMs;
         this.dropsPerSecond = 0;
         this._startLoop();
@@ -15,8 +15,18 @@ export class SweatDropletEffect {
         if (!this.card) return;
         const drop = document.createElement('div');
         drop.className = 'droplet';
-        drop.style.left = Math.random() * 90 + '%';
-        drop.style.animationDelay = (Math.random() * 0.2) + 's';
+        
+        // Get card dimensions
+        const cardRect = this.card.getBoundingClientRect();
+        const cardWidth = cardRect.width;
+        
+        // Position droplet within card boundaries (random horizontal position)
+        const leftPosition = Math.random() * (cardWidth - 4); // 4px is droplet width
+        drop.style.left = leftPosition + 'px';
+        
+        // Set initial top position at the top of the card
+        drop.style.top = '0px';
+        
         this.card.appendChild(drop);
         setTimeout(() => drop.remove(), 1000);
     }

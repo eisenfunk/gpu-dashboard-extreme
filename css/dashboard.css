@@ -34,7 +34,9 @@ body {
     position: relative;
     border: 1px solid #333;
     transition: background-color 0.15s, box-shadow 0.15s, border-radius 0.3s ease-out, border-color 0.2s, width 0.1s, height 0.1s;
-    overflow: visible;
+    overflow: hidden;
+    /* Ensure droplets stay within card boundaries */
+    contain: layout style paint;
 }
 
 .card-content {
@@ -83,8 +85,23 @@ button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4p
 @keyframes lightning-burst { 0% { background-color: #1a1a1a; } 50% { background-color: #ffffff; } 100% { background-color: #1a1a1a; } }
 .state-lightning { animation: lightning-burst 0.12s ease-out !important; }
 
-.droplet { position: absolute; background: rgba(255, 255, 255, 0.5); width: 4px; height: 12px; border-radius: 50%; top: -15px; pointer-events: none; z-index: 5; animation: drip 0.8s linear forwards; }
-@keyframes drip { to { transform: translateY(160px); opacity: 0; } }
+.droplet {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.5);
+    width: 4px;
+    height: 12px;
+    border-radius: 50%;
+    top: 0;
+    pointer-events: none;
+    z-index: 5;
+    animation: drip 0.8s linear forwards;
+}
+@keyframes drip {
+    to {
+        transform: translateY(160px);
+        opacity: 0;
+    }
+}
 
 .c-temp { background: #00d4ff; }
 .c-gpu { background: #9c27b0; }

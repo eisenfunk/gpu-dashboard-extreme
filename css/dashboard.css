@@ -89,3 +89,115 @@ button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4p
 .c-temp { background: #00d4ff; }
 .c-gpu { background: #9c27b0; }
 .c-vram { background: #e91e63; }
+
+/* CPU Styles */
+#cpu-grid {
+   margin-top: 20px;
+}
+
+.cpu-cores-container {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(20px, 1fr));
+   gap: 0px;
+   margin-top: 10px;
+   border-radius: 0px;
+   border: 1px solid #444;
+}
+
+/* Set exact height for CPU card to match other cards pattern */
+#card-cpu {
+   height: 215px !important;
+   box-sizing: border-box;
+}
+
+.cpu-card {
+   height: 215px;
+   box-sizing: border-box;
+   display: flex;
+   flex-direction: column;
+}
+
+#card-cpu .card-content {
+   height: 100%;
+   box-sizing: border-box;
+   padding: 15px;
+   display: flex;
+   flex-direction: column;
+}
+
+.cpu-card .card-content {
+   flex: 1;
+   display: flex;
+   flex-direction: column;
+   height: 100%;
+   box-sizing: border-box;
+   padding: 15px;
+}
+
+/* Ensure CPU cores container properly utilizes the available space */
+#cpu-cores-container {
+   flex: 1;
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(20px, 1fr));
+   gap: 0px;
+   margin-top: 10px;
+   border-radius: 0px;
+   overflow: hidden;
+   border: 1px solid #444;
+}
+
+.cpu-core {
+   display: flex;
+   flex-direction: column;
+   align-items: center;
+}
+
+.cpu-core-bar-container {
+    width: 100%;
+    height: 100%;
+    background: #222;
+    border-radius: 0px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid transparent;
+    min-height: 10px;
+    display: flex;
+    align-items: flex-end;
+    min-width: 10px;
+    opacity: 1;
+    visibility: visible;
+    display: block;
+}
+
+.cpu-core-bar {
+    width: 100%;
+    background: #4caf50;
+    transition: height 0.1s linear;
+    border-radius: 0px;
+    position: absolute;
+    bottom: 0;
+    min-height: 0;
+    height: 0%;
+    max-height: 100%;
+    min-width: 1px;
+    opacity: 1;
+    visibility: visible;
+    display: block;
+    z-index: 1;
+}
+
+/* Ensure CPU core bars work properly within the fixed height */
+#cpu-cores-container .cpu-core-bar-container {
+   height: 100%;
+}
+
+#cpu-cores-container .cpu-core-bar {
+   height: 0%;
+   width: 100%;
+}
+
+.cpu-core-label {
+   margin-top: 5px;
+   font-size: 0.6rem;
+   color: #666;
+}

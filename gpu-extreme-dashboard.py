@@ -3,6 +3,7 @@ import json
 import time
 import sys
 import argparse
+import psutil
 from flask_cors import CORS
 from flask import Flask, Response, render_template_string, request, send_from_directory
 
@@ -92,6 +93,16 @@ HTML_TEMPLATE = """
                     <div class="bar-bg"><div id="b-vram" class="bar-fill c-vram"></div></div>
                 </div>
             </div>
+
+            <div class="card" id="card-cpu">
+                <div class="card-content">
+                    <span class="label">CPU</span>
+                    <span class="val" id="v-cpu">--</span>
+                    <div id="cpu-cores-container" class="cpu-cores-container">
+                        <!-- CPU Cores werden hier dynamisch eingefügt -->
+                    </div>
+                </div>
+            </div>
         </div>
         <div style="text-align:center; margin-top:20px; font-size:0.6rem; color:#444;" id="status-text">Connecting...</div>
     </div>
@@ -138,6 +149,41 @@ HTML_TEMPLATE = """
 """
 
 # --- BACKEND LOGIC ---
+def get_cpu_data() -> dict:
+    """Ermittelt CPU-Statistiken inkl. Anzahl Kerne und Threads"""
+    try:
+        # Anzahl der logischen Kerne
+        num_cores = psutil.cpu_count(logical=True)
+        
+        # Anzahl der physischen Kerne
+        num_physical_cores = psutil.cpu_count(logical=False)
+        
+        # CPU-Auslastung insgesamt
+        cpu_percent = psutil.cpu_percent(interval=1)
+        
+        # CPU-Auslastung pro Kern (nur bei mehr als einem Kern)
+        if num_cores > 1:
+            cpu_per_core = psutil.cpu_percent(interval=1, percpu=True)
+        else:
+            cpu_per_core = [cpu_percent]
+        
+        # Anzahl der Threads pro Kern (berechnet aus logischen und physischen Kernen)
+        num_threads_per_core = num_cores // num_physical_cores if num_physical_cores > 0 else 1
+        
+        # Struktur für die Rückgabe
+        data = {
+            "num_cores": num_cores,
+            "num_physical_cores": num_physical_cores,
+            "num_threads_per_core": num_threads_per_core,
+            "cpu_percent": cpu_percent,
+            "cpu_per_core": cpu_per_core
+        }
+        return data
+    except Exception as e:
+        return {
+            "error": f"Fehler bei der CPU-Statistik-Erhebung: {e}"
+        }
+
 def get_real_gpu_data() -> dict:
     global use_rocm
 
@@ -163,7 +209,7 @@ def get_real_gpu_data() -> dict:
 
         # CSV‑String → einzelne Werte (keine Einrückung, alles durch Komma getrennt)
         temp, power, util, mem_used, mem_total = [float(v) for v in out.split(',')]
-
+        
         # Prozentualen Speicherverbrauch berechnen (auf ganze Zahl runden)
         mem_percent = int(round((mem_used / mem_total) * 100)) if mem_total > 0 else 0
 
@@ -225,8 +271,16 @@ def stream():
     def event_stream():
         sim_start_time = time.time()
         while True:
-            data = get_simulated_data(sim_start_time) if is_test else get_real_gpu_data()
-            yield f"data: {json.dumps(data)}\n\n"
+            gpu_data = get_simulated_data(sim_start_time) if is_test else get_real_gpu_data()
+            cpu_data = get_cpu_data()
+            
+            # Kombiniere GPU- und CPU-Daten
+            combined_data = {
+                "gpu": gpu_data,
+                "cpu": cpu_data
+            }
+            
+            yield f"data: {json.dumps(combined_data)}\n\n"
             time.sleep(interval)
     return Response(event_stream(), mimetype='text/event-stream')
 
@@ -235,11 +289,19 @@ def stats_quick():
     """Ein einfacher Endpunkt für die WebUI-Funktion (ohne SSE-Overhead)"""
     try:
         # Wir nutzen deine bestehende Logik
-        data = get_real_gpu_data()
+        gpu_data = get_real_gpu_data()
+        cpu_data = get_cpu_data()
+        
+        # Kombiniere GPU- und CPU-Daten
+        combined_data = {
+            "gpu": gpu_data,
+            "cpu": cpu_data
+        }
+        
         # Falls es einen Fehler gibt, liefern wir ein leeres Dict
-        if "error" in data:
+        if "error" in gpu_data or "error" in cpu_data:
             return {"error": "No data"}, 500
-        return data
+        return combined_data
     except Exception as e:
         return {"error": str(e)}, 500
 

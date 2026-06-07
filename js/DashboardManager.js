@@ -1,4 +1,6 @@
 // --- Dashboard Manager ---
+import { CpuUpdate } from './CpuUpdate.js';
+
 export class DashboardManager {
     constructor(temperatureStoveEffect, powerFlashEffect, gpuUsageEffect, vramBloatEffect, sweatDropletEffect) {
         this.temperatureStoveEffect = temperatureStoveEffect;
@@ -6,24 +8,38 @@ export class DashboardManager {
         this.gpuUsageEffect = gpuUsageEffect;
         this.vramBloatEffect = vramBloatEffect;
         this.sweatDropletEffect = sweatDropletEffect;
+        this.cpuUpdate = new CpuUpdate();
         this.reconnectInterval = 5; // seconds between reconnection attempts
         this.eventSource = null;
         this._setupEventSource();
     }
 
     updateDashboard(data) {
+        // Debug-Ausgabe für die empfangenen Daten
+        console.log('Empfangene Dashboard-Daten:', data);
+        
         if (data.error) {
             document.getElementById('status-text').innerText = "Error: " + data.error;
             return;
         }
         document.getElementById('status-text').innerText = "LIVE";
-        const c0 = data.card0;
-        this.temperatureStoveEffect.update(c0["Temperature (Sensor edge) (C)"]);
-        this.powerFlashEffect.update(c0["Current Socket Graphics Package Power (W)"]);
-        this.gpuUsageEffect.update(c0["GPU use (%)"]);
-        this.vramBloatEffect.update(c0["GPU Memory Allocated (VRAM%)"]);
-        this.sweatDropletEffect.update(this.gpuUsageEffect.getDropsPerSecond());
+        
+        // Verarbeite GPU-Daten
+        if (data.gpu && data.gpu.card0) {
+            const c0 = data.gpu.card0;
+            this.temperatureStoveEffect.update(c0["Temperature (Sensor edge) (C)"]);
+            this.powerFlashEffect.update(c0["Current Socket Graphics Package Power (W)"]);
+            this.gpuUsageEffect.update(c0["GPU use (%)"]);
+            this.vramBloatEffect.update(c0["GPU Memory Allocated (VRAM%)"]);
+            this.sweatDropletEffect.update(this.gpuUsageEffect.getDropsPerSecond());
+        }
+        
+        // Verarbeite CPU-Daten
+        if (data.cpu) {
+            this.cpuUpdate.update(data.cpu);
+        }
     }
+    
 
     _getStatusText() {
         const urlParams = new URLSearchParams(window.location.search);

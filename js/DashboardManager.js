@@ -2,19 +2,20 @@
 import { CpuUpdate } from './CpuUpdate.js';
 
 export class DashboardManager {
-    constructor(temperatureStoveEffect, powerFlashEffect, gpuUsageEffect, vramBloatEffect, sweatDropletEffect) {
+    constructor(temperatureStoveEffect, powerFlashEffect, gpuUsageEffect, vramBloatEffect, sweatDropletEffect, systemLoadEffect) {
         this.temperatureStoveEffect = temperatureStoveEffect;
         this.powerFlashEffect = powerFlashEffect;
         this.gpuUsageEffect = gpuUsageEffect;
         this.vramBloatEffect = vramBloatEffect;
         this.sweatDropletEffect = sweatDropletEffect;
+        this.systemLoadEffect = systemLoadEffect;
         this.cpuUpdate = new CpuUpdate();
         this.reconnectInterval = 5; // seconds between reconnection attempts
         this.eventSource = null;
         this._setupEventSource();
     }
 
-    updateDashboard(data) {        
+    updateDashboard(data) {
         if (data.error) {
             document.getElementById('status-text').innerText = "Error: " + data.error;
             return;
@@ -32,6 +33,11 @@ export class DashboardManager {
         
         if (data.cpu) {
             this.cpuUpdate.update(data.cpu);
+        }
+        
+        // Handle system load data (from CPU data)
+        if (data.cpu) {
+            this.systemLoadEffect.update(data);
         }
     }
     

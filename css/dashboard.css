@@ -106,6 +106,7 @@ button { background: #00d4ff; border: none; padding: 5px 15px; border-radius: 4p
 .c-temp { background: #00d4ff; }
 .c-gpu { background: #9c27b0; }
 .c-vram { background: #e91e63; }
+.c-systemload { background: #4caf50; }
 
 /* CPU Styles */
 #cpu-grid {

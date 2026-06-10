@@ -21,6 +21,30 @@ def serve_js(filename):
 def serve_css(filename):
     return send_from_directory('css', filename, mimetype='text/css')
 
+def get_system_capacity_saturation():
+    """
+    Calculate the system capacity saturation based on CPU load metrics.
+    
+    The saturation represents the degree of system load relative to available
+    CPU capacity, capped at 1.0 (100%).
+    
+    Returns:
+        float: System capacity saturation between 0.0 and 1.0
+        
+    Formula:
+        saturation = min(1.0, load_1min / physical_cores)
+    """
+    # Get the 1-minute load average
+    load_avg = psutil.getloadavg()[0]
+    
+    # Get the number of physical CPU cores (not logical threads)
+    physical_cores = psutil.cpu_count(logical=False)
+    
+    # Calculate saturation
+    saturation = load_avg / physical_cores
+    
+    # Cap the saturation at 1.0 (100%)
+    return min(1.0, saturation)
 
 # --- BACKEND LOGIC ---
 def get_cpu_data() -> dict:
@@ -44,13 +68,17 @@ def get_cpu_data() -> dict:
         # Anzahl der Threads pro Kern (berechnet aus logischen und physischen Kernen)
         num_threads_per_core = num_cores // num_physical_cores if num_physical_cores > 0 else 1
         
+        # System capacity saturation calculation
+        system_capacity_saturation = get_system_capacity_saturation()
+        
         # Struktur für die Rückgabe
         data = {
             "num_cores": num_cores,
             "num_physical_cores": num_physical_cores,
             "num_threads_per_core": num_threads_per_core,
             "cpu_percent": cpu_percent,
-            "cpu_per_core": cpu_per_core
+            "cpu_per_core": cpu_per_core,
+            "system_capacity_saturation": system_capacity_saturation
         }
         return data
     except Exception as e:

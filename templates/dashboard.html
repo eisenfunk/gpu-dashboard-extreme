@@ -69,6 +69,22 @@
                 </div>
             </div>
 
+            <div class="card" id="card-systemload">
+                <div class="card-content">
+                    <span class="label">System Load</span>
+                    <span class="val" id="v-systemload">--</span>
+                    <div class="bar-bg"><div id="b-systemload" class="bar-fill"></div></div>
+                </div>
+            </div>
+
+            <div class="card" id="card-hdd">
+                <div class="card-content">
+                    <span class="label">HDD usage</span>
+                    <span class="val" id="v-hdd">--</span>
+                    <div class="bar-bg"><div id="b-hdd" class="bar-fill"></div></div>
+                </div>
+            </div>
+
             <div class="card" id="card-cpu">
                 <div class="card-content">
                     <span class="label">CPU</span>
@@ -89,6 +105,7 @@
         import { PowerFlashEffect } from '/js/effects/PowerFlashEffect.js';
         import { GpuUsageEffect } from '/js/effects/GpuUsageEffect.js';
         import { VramBloatEffect } from '/js/effects/VramBloatEffect.js';
+        import { SystemLoadEffect } from '/js/effects/SystemLoadEffect.js';
         import { DashboardManager } from '/js/DashboardManager.js';
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -109,6 +126,7 @@
         const gpuUsageEffect = new GpuUsageEffect('card-gpu', 'v-gpu', 'b-gpu');
         const vramBloatEffect = new VramBloatEffect(bloatAnimIntervalMs, bloatSequenceLength, bloatThreshold, 'card-vram', 'v-vram', 'b-vram');
         const sweatDropletEffect = new SweatDropletEffect(sweatAnimIntervalMs,'card-gpu');
+        const systemLoadEffect = new SystemLoadEffect('card-systemload', 'v-systemload', 'b-systemload');
 
         // Initialize Dashboard Manager
         const dashboard = new DashboardManager(
@@ -116,7 +134,8 @@
             powerFlashEffect,
             gpuUsageEffect,
             vramBloatEffect,
-            sweatDropletEffect
+            sweatDropletEffect,
+            systemLoadEffect
         );
     </script>
 </body>

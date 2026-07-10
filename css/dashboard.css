@@ -24,8 +24,47 @@ body {
 
 .grid {
     display: grid;
-    grid-template-columns: var(--grid-cols, repeat(2, 1fr));
     gap: 15px;
+}
+
+/* Layout classes for 2-column and 4-column modes */
+.grid-2col {
+    grid-template-columns: 50% 50%;
+    grid-template-areas:
+        "a b"
+        "c d"
+        "e g"
+        "f g";
+}
+
+.grid-4col {
+    grid-template-columns: 25% 25% 25% 25%;
+    grid-template-areas:
+        "a b c d"
+        "e f g g";
+}
+
+/* Card area positioning */
+.card-a { grid-area: a; }
+.card-b { grid-area: b; }
+.card-c { grid-area: c; }
+.card-d { grid-area: d; }
+.card-e { grid-area: e; }
+.card-f { grid-area: f; }
+.card-g { grid-area: g; }
+
+/* For 4-column layout, CPU card spans 2 columns */
+.card-g-4col {
+    grid-column: span 2;
+}
+
+/* Set fixed heights for grid rows */
+.grid-2col {
+    min-height: 450px;
+}
+
+.grid-4col {
+    min-height: 250px;
 }
 
 .card {

@@ -2,6 +2,7 @@ import subprocess
 import json
 import time
 import sys
+import os
 import argparse
 import psutil
 from flask_cors import CORS
@@ -86,15 +87,71 @@ def get_cpu_data() -> dict:
             "error": f"Fehler bei der CPU-Statistik-Erhebung: {e}"
         }
 
+def _parse_amd_smi_process_vram() -> int | None:
+    """
+    Run `amd-smi process` and sum MEM_USAGE values across all processes.
+    Returns VRAM usage as a percentage (0-100, integer) based on 128 GB total.
+    Returns None if the command fails or parsing fails.
+    """
+    import re
+
+    # Try multiple possible paths for amd-smi binary
+    amd_smi_paths = ["/opt/rocm/bin/amd-smi", "amd-smi"]
+    
+    cmd = None
+    for path in amd_smi_paths:
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            cmd = [path, "process"]
+            break
+    
+    if cmd is None:
+        # Fallback to PATH lookup via shell=True
+        cmd = ["amd-smi", "process"]
+
+    try:
+        result = subprocess.check_output(
+            cmd, shell=False, text=True, stderr=subprocess.STDOUT
+        )
+    except Exception:
+        return None
+
+    total_bytes = 0.0
+    for line in result.splitlines():
+        match = re.search(r'MEM_USAGE:\s*([\d.]+)\s*(GB|MB|B)', line)
+        if not match:
+            continue
+        try:
+            value = float(match.group(1))
+        except ValueError:
+            continue
+        unit = match.group(2).upper()
+        if unit == "GB":
+            total_bytes += value * (1024 ** 3)
+        elif unit == "MB":
+            total_bytes += value * (1024 ** 2)
+        elif unit == "B":
+            total_bytes += value
+
+    TOTAL_VRAM_BYTES = 128 * (1024 ** 3)  # 128 GB in bytes
+    percent = int((total_bytes / TOTAL_VRAM_BYTES) * 100) if TOTAL_VRAM_BYTES > 0 else 0
+    return min(100, max(0, percent))
+
+
 def get_real_gpu_data() -> dict:
     global use_rocm
 
     if use_rocm:
         try:
-            cmd = "rocm-smi --showmemuse --showpower --showtemp --showuse --json"
+            # rocm-smi Aufruf bleibt unverändert, liefert u.a. "GPU Memory Allocated (VRAM%)": "99"
+            cmd = "/opt/rocm/bin/rocm-smi --showmemuse --showpower --showtemp --showuse --json"
             result = subprocess.check_output(cmd, shell=True, text=True)
             data = json.loads(result)
-            startup = False
+
+            # amd-smi process zusätzlich ausführen für korrekten VRAM-Wert
+            vram_percent = _parse_amd_smi_process_vram()
+            if vram_percent is not None and "card0" in data:
+                data["card0"]["GPU Memory Allocated (VRAM%)"] = str(vram_percent)
+
             return data
         except Exception as e:
             use_rocm = False

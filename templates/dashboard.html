@@ -39,29 +39,32 @@
     </div>
     {% endif %}
     <div id="gpu-extreme-cockpit-v4" style="--cockpit-width: {{ widget_size }}; --form-width: {{ width }}px; --grid-cols: repeat({{ col }}, 1fr);">
-        <div class="grid">
-            <div class="card" id="card-temp">
+        <div class="grid {% if col == 4 %}grid-4col{% else %}grid-2col{% endif %}">
+            <!-- Row 1: a (Temp), b (Power) -->
+            <div class="card card-a" id="card-temp">
                 <div class="card-content">
                     <span class="label">Temp</span>
                     <span class="val" id="v-temp">--</span>
                     <div class="bar-bg"><div id="b-temp" class="bar-fill c-temp"></div></div>
                 </div>
             </div>
-            <div class="card" id="card-power">
+            <div class="card card-b" id="card-power">
                 <div class="card-content">
                     <span class="label">Power</span>
                     <span class="val" id="v-power">--</span>
                     <div class="bar-bg"><div id="b-power" class="bar-fill"></div></div>
                 </div>
             </div>
-            <div class="card" id="card-gpu">
+
+            <!-- Row 2: c (GPU), d (VRAM) -->
+            <div class="card card-c" id="card-gpu">
                 <div class="card-content">
                     <span class="label">GPU</span>
                     <span class="val" id="v-gpu">--</span>
                     <div class="bar-bg"><div id="b-gpu" class="bar-fill c-gpu"></div></div>
                 </div>
             </div>
-            <div class="card" id="card-vram">
+            <div class="card card-d" id="card-vram">
                 <div class="card-content">
                     <span class="label">VRAM</span>
                     <span class="val" id="v-vram">--</span>
@@ -69,7 +72,9 @@
                 </div>
             </div>
 
-            <div class="card" id="card-systemload">
+            <!-- Row 3/4 (2-col): e (System Load), g (CPU) -->
+            <!-- Row 3/4 (4-col): e (System Load), f (HDD), g (CPU spans 2 cols) -->
+            <div class="card card-e" id="card-systemload">
                 <div class="card-content">
                     <span class="label">System Load</span>
                     <span class="val" id="v-systemload">--</span>
@@ -77,7 +82,7 @@
                 </div>
             </div>
 
-            <div class="card" id="card-hdd">
+            <div class="card card-f" id="card-hdd">
                 <div class="card-content">
                     <span class="label">HDD usage</span>
                     <span class="val" id="v-hdd">--</span>
@@ -85,7 +90,7 @@
                 </div>
             </div>
 
-            <div class="card" id="card-cpu">
+            <div class="card card-g {% if col == 4 %}card-g-4col{% endif %}" id="card-cpu">
                 <div class="card-content">
                     <span class="label">CPU</span>
                     <span class="val" id="v-cpu">--</span>
